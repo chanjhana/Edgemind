@@ -1,0 +1,12 @@
+# sensor_sim dependencies
+#
+# Person A (fault_engine.py, pump_config.py, tests) needs ONLY the standard
+# library — no third-party packages. pytest is optional for running tests.
+#
+# Persons B and C add their own deps below as they build:
+#   asyncua     # Person B — OPC-UA server
+#   fastapi     # Person C — inject endpoint
+#   uvicorn     # Persons B/C — ASGI server
+
+# Optional, for running Person A's tests via pytest (also runnable bare):
+pytest>=7.0
