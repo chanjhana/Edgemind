@@ -47,13 +47,13 @@ Prometheus (15s scrape)
 | **Phase 1** | Root docker-compose.yml (6-service stack) | ✅ **Complete** |
 | **Phase 2** | health-scorer (scorer.py + main.py + Dockerfile) | ✅ **Complete** |
 | **Phase 2** | alert-manager (enricher.py + main.py + Dockerfile) | ✅ **Complete** |
-| **Phase 2** | batch-sync | 🔲 Not started |
-| **Phase 2** | mock-upload | 🔲 Not started |
+| **Phase 2** | mock-upload (main.py + Dockerfile) | ✅ **Complete** |
+| **Phase 2** | batch-sync (main.py + Dockerfile + 33 tests) | ✅ **Complete** |
 | **Phase 3** | EdgeMind 4 agents + correlation filter + orchestrator + API | 🔲 Not started |
 | **Phase 4** | React/Vite dashboard (4 panels) | 🔲 Not started |
 | **Phase 4** | k3s + Prometheus deployment + Helm chart | 🔲 Not started |
 
-**Current test count:** 176 passing (45 sensor_sim + 4 common + 10 opc_ua_collector + 9 feature_extractor + 41 health_scorer + 67 alert_manager)
+**Current test count:** 209 passing (45 sensor_sim + 4 common + 10 opc_ua_collector + 9 feature_extractor + 41 health_scorer + 67 alert_manager + 33 batch_sync)
 
 ---
 
@@ -366,4 +366,46 @@ docker compose config: valid
 
 <!-- New sessions appended below this line -->
 
+### Session 4 — 2026-06-13
 
+**Branch:** `data_synthesis`
+
+**Built:**
+| File | Purpose |
+|---|---|
+| `mock_upload/__init__.py` | Package marker |
+| `mock_upload/main.py` | FastAPI `POST /upload` (multipart, 64 KB chunked reads, discards bytes), `GET /health`. Creates organic network egress from batch-sync on every upload. |
+| `mock_upload/Dockerfile` | python:3.11-slim, self-contained (no common/ needed) |
+| `mock_upload/requirements.txt` | fastapi, uvicorn, python-multipart |
+| `mock_upload/.dockerignore` | Standard exclusions |
+| `batch_sync/__init__.py` | Package marker |
+| `batch_sync/main.py` | FastAPI bulk-export service (port 8091): scheduled 5-min loop + `POST /trigger` (fault-triggered), single asyncio.Lock (one export at a time → 409 if busy), returns 200 immediately and runs export as background task. Two export paths: `scheduled/` (24h retention) and `fault/` (permanent). Parquet snappy via pandas+pyarrow. HTTP upload to mock-upload. `GET /status`, `GET /health`. |
+| `batch_sync/Dockerfile` | Build context = repo root (copies common/), python:3.11-slim |
+| `batch_sync/requirements.txt` | fastapi, uvicorn, influxdb-client[async], pandas, pyarrow, httpx |
+| `batch_sync/.dockerignore` | Standard + tests/ exclusion |
+| `batch_sync/tests/__init__.py` | Package marker |
+| `batch_sync/tests/conftest.py` | Path setup conftest |
+| `batch_sync/tests/test_batch_sync.py` | 33 unit tests (7 groups): ExportState lock semantics, cleanup retention policy, Parquet round-trip, /trigger 200/409/422, /status+/health, pump_id validation (8 bad IDs), _query_to_df column cleanup |
+| `docker-compose.yml` | Added mock-upload (port 9000) and batch-sync (port 8091) services; export-data volume shared with alert-manager |
+
+**Key design decisions:**
+- **Single asyncio.Lock** — health-scorer gets 409 if an export is already in progress (not queued). Prevents concurrent InfluxDB bulk reads and avoids unbounded PVC-2 growth in rapid-fault scenarios.
+- **Fault exports permanent** — PVC-2 fills measurably across demo session. Storage agent forecasts time-to-full from this fill rate.
+- **Sequential InfluxDB queries** for fault exports (telemetry → features → health) — avoids overloading the historian while still creating a clear read-pressure spike visible to the storage agent.
+- **FastAPI lifespan** — used modern `@asynccontextmanager` lifespan pattern instead of deprecated `@app.on_event`.
+- **importlib.util for test isolation** — loaded as `batch_sync_main` module name to avoid `sys.modules["main"]` collision with alert_manager/main.py when all suites run together.
+
+**Tests run:**
+```
+33 batch_sync tests:  33/33 PASSED (1.89s, isolated)
+Full suite (all layers): 209/209 PASSED (11.40s)
+docker compose config: valid
+```
+
+**Issue hit and fixed:**
+- `sys.modules["main"]` collision: when running `pytest alert_manager/tests batch_sync/tests`, alert_manager's `main.py` is imported first and cached. Fix: loaded `batch_sync/main.py` via `importlib.util.spec_from_file_location` under the unique name `batch_sync_main`, avoiding the collision entirely.
+- One test assertion used `/data/exports/fault/test.parquet` (Linux slashes) but `Path.str()` on Windows returns backslashes. Fix: compare as `Path` objects.
+
+**Status at end of session:** Phase 2 complete — all 8 pipeline services built. 209 tests passing. docker-compose.yml has 10 services.
+
+**Next action:** Phase 3 — EdgeMind detection layer: 4 domain agents (CPU, Memory, Storage, Network+Log) + correlation filter + Claude orchestrator + WebSocket API.

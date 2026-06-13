@@ -1,19 +1,19 @@
-# EdgeMind pump-station — full pipeline stack (Phase 2).
+# EdgeMind pump-station — full pipeline stack (Phase 2, complete).
 #
 #   docker compose up --build -d
 #   docker compose ps
-#   docker compose logs -f health-scorer
+#   docker compose logs -f batch-sync
 #   docker compose down            (add -v to also wipe volumes)
 #
-# Services:
+# Services (10 total):
 #   sensor-sim-1/2/3  OPC-UA pump simulators + fault inject API
 #   data-historian    InfluxDB 2.x (bucket: pump_station)
 #   opc-ua-collector  telemetry → pump_telemetry
 #   feature-extractor pump_telemetry → pump_features (30s cycle)
 #   health-scorer     pump_features → pump_health + triggers
-#   alert-manager     alert enrichment + JSONL log on PVC-2  [next]
-#   batch-sync        Parquet export to PVC-2                [next]
-#   mock-upload       simulated cloud upload endpoint        [next]
+#   alert-manager     alert enrichment + JSONL log on PVC-2
+#   mock-upload       simulated cloud upload endpoint (port 9000)
+#   batch-sync        Parquet export to PVC-2 + upload to mock-upload
 #
 # Dev-only InfluxDB credentials below — fine for local; do NOT use in prod.
 
@@ -158,7 +158,51 @@ services:
     ports: ["8090:8090"]
     restart: unless-stopped
 
+  # ── mock-upload (simulated cloud upload endpoint) ─────────────────────────────
+  mock-upload:
+    build:
+      context: .
+      dockerfile: mock_upload/Dockerfile
+    image: edgemind/mock-upload:latest
+    container_name: mock-upload
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "9000"
+      LOG_LEVEL: INFO
+    ports: ["9000:9000"]
+    restart: unless-stopped
+
+  # ── batch-sync (Parquet bulk export → PVC-2 → mock-upload) ───────────────────
+  # The large-file-I/O pod. Two modes:
+  #   Scheduled: every SCHEDULE_S seconds — exports last 5 min of pump_telemetry.
+  #   Fault-triggered: POST /trigger from health-scorer — exports last 30 min
+  #     of telemetry + features + health for the affected pump.
+  # Fault exports are PERMANENT on PVC-2 (storage agent forecasts time-to-full).
+  batch-sync:
+    build:
+      context: .
+      dockerfile: batch_sync/Dockerfile
+    image: edgemind/batch-sync:latest
+    container_name: batch-sync
+    depends_on:
+      data-historian:
+        condition: service_healthy
+      mock-upload:
+        condition: service_started
+    environment:
+      <<: *influx-env
+      EXPORTS_DIR: /data/exports
+      MOCK_UPLOAD_URL: http://mock-upload:9000
+      SCHEDULE_S: "300"       # 5-minute scheduled export; lower to 60 for faster testing
+      FAULT_WINDOW_MIN: "30"  # minutes of history per fault-triggered export
+      HOST: "0.0.0.0"
+      PORT: "8091"
+      LOG_LEVEL: INFO
+    volumes:
+      - export-data:/data      # PVC-2: shared with alert-manager — contention is intentional
+    ports: ["8091:8091"]
+    restart: unless-stopped
+
 volumes:
   influxdb-data:
   export-data:     # PVC-2 — shared by alert-manager (/data/alerts/) and batch-sync (/data/exports/)
-
