@@ -11,7 +11,7 @@ pytest>=7.0
 pytest-asyncio>=0.24.0
 
 # ── Person B: OPC-UA server ───────────────────────────────────────────────────
-asyncua==1.1.5
+asyncua==2.0
 
 # ── Person B/C: ASGI + HTTP server ───────────────────────────────────────────
 uvicorn[standard]==0.32.1
