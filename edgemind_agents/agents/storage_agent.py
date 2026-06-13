@@ -17,6 +17,7 @@ from edgemind_agents.anomaly_types import (
     STORAGE_PVC_FILL_WARN, STORAGE_PVC_FILL_CRIT,
     STORAGE_TTF_WARN_HOURS, STORAGE_TTF_CRIT_HOURS,
     STORAGE_ROLL_WINDOW, STORAGE_PVC_ROLL_WINDOW, STORAGE_WARMUP_MIN,
+    STORAGE_PVC_REFRESH_S, STORAGE_SUSTAINED_BURST_CYCLES,
     COLLECT_INTERVAL_S,
 )
 from edgemind_agents.agents.base import BaseAgent
@@ -24,8 +25,7 @@ from edgemind_agents.models import MetricSnapshot
 
 log = logging.getLogger(__name__)
 
-_PVC_REFRESH_S = 300
-_SUSTAINED_BURST_REQUIRED = 2
+_MB = 1024 * 1024
 
 
 class _PodStorageState:
@@ -49,7 +49,7 @@ class StorageAgent(BaseAgent):
 
     async def _refresh_pvc_map(self) -> None:
         now = time.monotonic()
-        if now - self._last_pvc_refresh < _PVC_REFRESH_S:
+        if now - self._last_pvc_refresh < STORAGE_PVC_REFRESH_S:
             return
         try:
             pods = self._k8s.list_pod_for_all_namespaces(watch=False)
@@ -88,6 +88,11 @@ class StorageAgent(BaseAgent):
                         "container": pod.container,
                         "pre_restart_io_sat": round(state.last_io_sat, 3),
                         "restart_count": pod.restart_count,
+                        "current_value": state.last_io_sat,
+                        "evidence": [
+                            f"Pod restarted after I/O saturation of {state.last_io_sat:.1%}",
+                            "High disk I/O likely contributed to instability",
+                        ],
                     })
                 state.write_window.clear()
                 state.io_sat_window.clear()
@@ -102,6 +107,11 @@ class StorageAgent(BaseAgent):
                 continue
 
             # I/O saturation
+            io_evidence = [
+                f"I/O saturation {pod.fs_io_saturation:.1%} — {'above critical' if pod.fs_io_saturation >= STORAGE_IO_SAT_CRITICAL else 'above warning'} threshold",
+                f"Disk has {'no' if pod.fs_io_saturation >= 0.99 else 'limited'} remaining I/O capacity",
+                f"Write rate: {pod.fs_write_bytes_per_sec / _MB:.1f} MB/s, Read rate: {pod.fs_read_bytes_per_sec / _MB:.1f} MB/s",
+            ]
             if pod.fs_io_saturation >= STORAGE_IO_SAT_CRITICAL:
                 saturated_pods.append(pod)
                 await self.publish_finding({
@@ -111,6 +121,8 @@ class StorageAgent(BaseAgent):
                     "namespace": pod.namespace,
                     "container": pod.container,
                     "io_saturation": round(pod.fs_io_saturation, 3),
+                    "current_value": pod.fs_io_saturation,
+                    "evidence": io_evidence,
                 })
             elif pod.fs_io_saturation >= STORAGE_IO_SAT_WARNING:
                 saturated_pods.append(pod)
@@ -121,6 +133,8 @@ class StorageAgent(BaseAgent):
                     "namespace": pod.namespace,
                     "container": pod.container,
                     "io_saturation": round(pod.fs_io_saturation, 3),
+                    "current_value": pod.fs_io_saturation,
+                    "evidence": io_evidence,
                 })
 
             # Write burst detection
@@ -134,7 +148,7 @@ class StorageAgent(BaseAgent):
             else:
                 state.sustained_burst_cycles = 0
 
-            if state.sustained_burst_cycles >= _SUSTAINED_BURST_REQUIRED:
+            if state.sustained_burst_cycles >= STORAGE_SUSTAINED_BURST_CYCLES:
                 await self.publish_finding({
                     "anomaly_type": WRITE_BURST,
                     "severity": SEV_WARNING,
@@ -143,6 +157,12 @@ class StorageAgent(BaseAgent):
                     "container": pod.container,
                     "write_bytes_per_sec": pod.fs_write_bytes_per_sec,
                     "z_score": round(z, 2),
+                    "current_value": pod.fs_write_bytes_per_sec / _MB,
+                    "evidence": [
+                        f"Write rate {pod.fs_write_bytes_per_sec / _MB:.1f} MB/s — Z-score {z:.1f} above {STORAGE_ROLL_WINDOW}-cycle baseline",
+                        f"Sustained for {state.sustained_burst_cycles} consecutive cycles",
+                        f"Baseline mean: {mean / _MB:.1f} MB/s",
+                    ],
                 })
 
         # PVC contention: multiple saturated pods on same PVC
@@ -156,6 +176,12 @@ class StorageAgent(BaseAgent):
                         "severity": SEV_WARNING,
                         "pvc": pvc_name,
                         "contending_pods": list(shared),
+                        "current_value": len(shared),
+                        "evidence": [
+                            f"{len(shared)} pods showing elevated I/O simultaneously on PVC {pvc_name}",
+                            f"Contending pods: {', '.join(shared)}",
+                            "Concurrent access causing disk saturation",
+                        ],
                     })
 
         # PVC fill
@@ -194,4 +220,9 @@ class StorageAgent(BaseAgent):
                     "used_bytes": pvc.used_bytes,
                     "capacity_bytes": pvc.capacity_bytes,
                     "ttf_hours": round(ttf_hours, 1) if ttf_hours is not None else None,
+                    "current_value": pvc.fill_ratio,
+                    "evidence": [
+                        f"PVC {pvc_name} at {pvc.fill_ratio:.1%} capacity ({pvc.used_bytes / _MB:.0f} MB / {pvc.capacity_bytes / _MB:.0f} MB)",
+                        f"TTF: {ttf_hours:.1f} hours at current fill rate" if ttf_hours is not None else "Fill rate insufficient for TTF forecast",
+                    ],
                 })

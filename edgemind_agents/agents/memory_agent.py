@@ -15,6 +15,7 @@ from edgemind_agents.anomaly_types import (
     MEM_NODE_WARN_RATIO, MEM_NODE_CRIT_RATIO,
     MEM_STEP_CHANGE_MB,
     MEM_REGRESSION_WINDOW, MEM_WARMUP_MIN,
+    MEM_OOM_WS_RATIO,
     COLLECT_INTERVAL_S,
 )
 from edgemind_agents.agents.base import BaseAgent
@@ -23,8 +24,8 @@ from edgemind_agents.models import MetricSnapshot
 log = logging.getLogger(__name__)
 
 _MB = 1024 * 1024
+_GB = 1024 * _MB
 _SCRAPES_PER_MIN = 60.0 / COLLECT_INTERVAL_S
-_OOM_WS_RATIO = 0.90
 
 
 class _PodMemState:
@@ -64,6 +65,14 @@ class MemoryAgent(BaseAgent):
                             worst_slope = slope_mb_per_min
                             worst_pod = pod
 
+                evidence = [
+                    f"Node available memory {node.mem_available_bytes / _GB:.2f} GB of {node.mem_total_bytes / _GB:.1f} GB total",
+                    f"Available ratio {pressure:.1%} — below {MEM_NODE_WARN_RATIO:.0%} warning threshold",
+                    "All pods at risk of I/O slowdown due to swap activity",
+                ]
+                if worst_pod:
+                    evidence.append(f"Likely cause: {worst_pod.pod} (RSS slope {worst_slope:.1f} MB/min)")
+
                 await self.publish_finding({
                     "anomaly_type": NODE_PRESSURE,
                     "severity": SEV_CRITICAL,
@@ -72,6 +81,8 @@ class MemoryAgent(BaseAgent):
                     "mem_pressure_ratio": round(pressure, 3),
                     "likely_cause_pod": worst_pod.pod if worst_pod else None,
                     "likely_cause_slope_mb_per_min": round(worst_slope, 2) if worst_pod else None,
+                    "current_value": node.mem_available_bytes / _GB,
+                    "evidence": evidence,
                 })
             elif pressure < MEM_NODE_WARN_RATIO:
                 await self.publish_finding({
@@ -80,6 +91,12 @@ class MemoryAgent(BaseAgent):
                     "mem_available_bytes": node.mem_available_bytes,
                     "mem_total_bytes": node.mem_total_bytes,
                     "mem_pressure_ratio": round(pressure, 3),
+                    "current_value": node.mem_available_bytes / _GB,
+                    "evidence": [
+                        f"Node available memory {node.mem_available_bytes / _GB:.2f} GB of {node.mem_total_bytes / _GB:.1f} GB total",
+                        f"Available ratio {pressure:.1%} — below {MEM_NODE_WARN_RATIO:.0%} warning threshold",
+                        "All pods at risk of I/O slowdown due to swap activity",
+                    ],
                 })
 
         for pod in snapshot.pods.values():
@@ -90,7 +107,7 @@ class MemoryAgent(BaseAgent):
             if pod.restart_count > state.last_restart_count:
                 if state.ws_window and pod.mem_limit_bytes > 0:
                     pre_ws = list(state.ws_window)[-1]
-                    if pre_ws / pod.mem_limit_bytes > _OOM_WS_RATIO:
+                    if pre_ws / pod.mem_limit_bytes > MEM_OOM_WS_RATIO:
                         await self.publish_finding({
                             "anomaly_type": OOMKILL,
                             "severity": SEV_CRITICAL,
@@ -100,6 +117,12 @@ class MemoryAgent(BaseAgent):
                             "pre_restart_ws_bytes": pre_ws,
                             "mem_limit_bytes": pod.mem_limit_bytes,
                             "restart_count": pod.restart_count,
+                            "current_value": pod.mem_rss_bytes / _MB,
+                            "evidence": [
+                                f"Pod restarted — restart count now {pod.restart_count}",
+                                f"Pre-restart working set was {(pre_ws / pod.mem_limit_bytes):.1%} of limit",
+                                "Classified as OOMKill based on pre-restart memory state",
+                            ],
                         })
                 state.rss_window.clear()
                 state.ws_window.clear()
@@ -117,6 +140,12 @@ class MemoryAgent(BaseAgent):
                         "container": pod.container,
                         "delta_mb": round(delta_mb, 1),
                         "rss_mb": round(pod.mem_rss_bytes / _MB, 1),
+                        "current_value": delta_mb,
+                        "evidence": [
+                            f"RSS jumped {delta_mb:.0f} MB in one scrape interval ({COLLECT_INTERVAL_S}s)",
+                            "Likely cause: cold start, model load, or cache warming",
+                            f"Current RSS: {pod.mem_rss_bytes / _MB:.1f} MB",
+                        ],
                     })
 
             state.last_rss = pod.mem_rss_bytes
@@ -143,6 +172,13 @@ class MemoryAgent(BaseAgent):
                     "slope_mb_per_min": round(slope_mb_per_min, 2),
                     "r_squared": round(r_squared, 3),
                     "current_rss_mb": round(pod.mem_rss_bytes / _MB, 1),
+                    "current_value": pod.mem_rss_bytes / _MB,
+                    "evidence": [
+                        f"RSS slope {slope_mb_per_min:.1f} MB/min (threshold {MEM_LEAK_SLOPE_MB_PER_MIN} MB/min)",
+                        f"R² = {r_squared:.3f} — {'strong' if r_squared > 0.85 else 'moderate'} linear fit confirming monotonic growth",
+                        f"Current RSS: {pod.mem_rss_bytes / _MB:.1f} MB",
+                        f"Regression over {MEM_REGRESSION_WINDOW} scrapes ({MEM_REGRESSION_WINDOW * COLLECT_INTERVAL_S}s window)",
+                    ],
                 })
 
             # OOM prediction
@@ -172,4 +208,10 @@ class MemoryAgent(BaseAgent):
                         "eta_minutes": round(eta_min, 1),
                         "mem_limit_bytes": pod.mem_limit_bytes,
                         "mem_working_set_bytes": pod.mem_working_set_bytes,
+                        "current_value": pod.mem_rss_bytes / _MB,
+                        "evidence": [
+                            f"Working set at {ws_ratio:.1%} of memory limit ({pod.mem_working_set_bytes / _MB:.0f} MB / {pod.mem_limit_bytes / _MB:.0f} MB)",
+                            f"OOM projected in {eta_min:.1f} minutes at current growth rate",
+                            f"RSS slope {slope_mb_per_min:.1f} MB/min",
+                        ],
                     })

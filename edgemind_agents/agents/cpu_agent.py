@@ -12,14 +12,13 @@ from edgemind_agents.anomaly_types import (
     CPU_SPIKE_WARNING_Z, CPU_SPIKE_CRITICAL_Z,
     CPU_THROTTLE_RATIO, CPU_THROTTLE_CYCLES,
     CPU_ROLLING_WINDOW, CPU_WARMUP_MIN,
+    CPU_SUSTAINED_SPIKE_CYCLES, CPU_RESTART_SUPPRESS_CYCLES,
+    COLLECT_INTERVAL_S,
 )
 from edgemind_agents.agents.base import BaseAgent
 from edgemind_agents.models import MetricSnapshot, PodMetrics
 
 log = logging.getLogger(__name__)
-
-_SUSTAINED_SPIKE_REQUIRED = 2
-_RESTART_SUPPRESS_CYCLES = 3
 
 
 class _PodCPUState:
@@ -55,7 +54,7 @@ class CPUAgent(BaseAgent):
                 state.window.clear()
                 state.sustained_spike_cycles = 0
                 state.sustained_throttle_cycles = 0
-                state.suppress_cycles_remaining = _RESTART_SUPPRESS_CYCLES
+                state.suppress_cycles_remaining = CPU_RESTART_SUPPRESS_CYCLES
                 state.last_restart_count = pod.restart_count
 
             if state.suppress_cycles_remaining > 0:
@@ -81,9 +80,9 @@ class CPUAgent(BaseAgent):
             else:
                 state.sustained_spike_cycles = 0
 
-            if state.sustained_spike_cycles >= _SUSTAINED_SPIKE_REQUIRED:
+            if state.sustained_spike_cycles >= CPU_SUSTAINED_SPIKE_CYCLES:
                 severity = SEV_CRITICAL if z >= CPU_SPIKE_CRITICAL_Z else SEV_WARNING
-                spiked_pods.append((pod, z, severity))
+                spiked_pods.append((pod, z, severity, state.sustained_spike_cycles, mean))
 
             # Throttle detection
             if pod.cpu_throttle_rate >= CPU_THROTTLE_RATIO:
@@ -92,17 +91,26 @@ class CPUAgent(BaseAgent):
                 state.sustained_throttle_cycles = 0
 
             if state.sustained_throttle_cycles >= CPU_THROTTLE_CYCLES:
-                throttled_pods.append(pod)
+                throttled_pods.append((pod, state.sustained_throttle_cycles))
 
         # Attribution and finding emission
         node = snapshot.node
         node_cpu_high = node is not None and node.cpu_idle_ratio < 0.20
 
-        for pod, z, severity in spiked_pods:
+        for pod, z, severity, sustained_cycles, mean in spiked_pods:
             if node_cpu_high and len(spiked_pods) > 1:
                 anomaly_type = CPU_CONTENTION
             else:
                 anomaly_type = CPU_SPIKE
+
+            evidence = [
+                f"Z-score {z:.1f} (warning threshold {CPU_SPIKE_WARNING_Z}, critical {CPU_SPIKE_CRITICAL_Z})",
+                f"Sustained for {sustained_cycles} consecutive cycles ({sustained_cycles * COLLECT_INTERVAL_S}s)",
+                f"CPU usage {pod.cpu_usage_cores:.3f} cores vs baseline mean {mean:.3f} cores",
+                f"Node CPU idle ratio: {node.cpu_idle_ratio:.2f}" if node else "Node CPU data unavailable",
+            ]
+            if anomaly_type == CPU_CONTENTION:
+                evidence.append("Multiple pods spiking simultaneously — node-level contention")
 
             await self.publish_finding({
                 "anomaly_type": anomaly_type,
@@ -114,9 +122,11 @@ class CPUAgent(BaseAgent):
                 "cpu_limit_cores": pod.cpu_limit_cores,
                 "z_score": round(z, 2),
                 "node_cpu_idle_ratio": round(node.cpu_idle_ratio, 3) if node else None,
+                "current_value": pod.cpu_usage_cores,
+                "evidence": evidence,
             })
 
-        for pod in throttled_pods:
+        for pod, sustained_throttle_cycles in throttled_pods:
             if len(throttled_pods) > 1 and not node_cpu_high:
                 detail = "multiple_pods_throttled"
             elif not node_cpu_high:
@@ -134,4 +144,11 @@ class CPUAgent(BaseAgent):
                 "cpu_usage_cores": pod.cpu_usage_cores,
                 "cpu_limit_cores": pod.cpu_limit_cores,
                 "detail": detail,
+                "current_value": pod.cpu_usage_cores,
+                "evidence": [
+                    f"Throttle rate {pod.cpu_throttle_rate:.1%} exceeds {CPU_THROTTLE_RATIO:.0%} threshold",
+                    f"Sustained for {sustained_throttle_cycles} consecutive cycles ({sustained_throttle_cycles * COLLECT_INTERVAL_S}s)",
+                    f"CPU usage {pod.cpu_usage_cores:.3f} cores, limit {pod.cpu_limit_cores:.3f} cores",
+                    f"Attribution: {detail}",
+                ],
             })

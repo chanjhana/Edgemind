@@ -125,7 +125,7 @@ def make_snapshot() -> MetricSnapshot:
             mem_total_bytes=8 * _GB,
         ),
         pvcs={
-            "pump-station/export-data": PVCMetrics(
+            "export-data": PVCMetrics(
                 pvc_name="export-data",
                 namespace="pump-station",
                 used_bytes=300 * _MB,
@@ -304,7 +304,7 @@ async def test_storage_pvc_fill_warning(mock_redis, mock_k8s):
     for i in range(20):
         used = int((300 + i * (450 / 19)) * _MB)
         snap = make_snapshot()
-        snap.pvcs["pump-station/export-data"].used_bytes = used
+        snap.pvcs["export-data"].used_bytes = used
         await agent.process(snap)
 
     findings = mock_redis.get_findings()

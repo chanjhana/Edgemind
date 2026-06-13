@@ -29,6 +29,8 @@ from edgemind_agents.models import MetricSnapshot
 
 log = logging.getLogger(__name__)
 
+_MB = 1024 * 1024
+
 _ERROR_PATTERNS = [
     re.compile(r"ERROR"),
     re.compile(r"Exception"),
@@ -101,6 +103,12 @@ class NetworkLogAgent(BaseAgent):
                     "direction": "tx",
                     "tx_bytes_per_sec": pod.net_tx_bytes_per_sec,
                     "baseline_p75": round(tx_p75, 1),
+                    "current_value": pod.net_tx_bytes_per_sec / _MB,
+                    "evidence": [
+                        f"TX rate {pod.net_tx_bytes_per_sec / _MB:.2f} MB/s — {pod.net_tx_bytes_per_sec / tx_p75:.1f}x above 75th-percentile baseline",
+                        f"Sustained for {state.sustained_flood_cycles} consecutive cycles ({state.sustained_flood_cycles * COLLECT_INTERVAL_S}s)",
+                        f"Baseline P75: {tx_p75 / _MB:.3f} MB/s",
+                    ],
                 })
 
             # RX flood
@@ -116,6 +124,12 @@ class NetworkLogAgent(BaseAgent):
                     "direction": "rx",
                     "rx_bytes_per_sec": pod.net_rx_bytes_per_sec,
                     "baseline_p75": round(rx_p75, 1),
+                    "current_value": pod.net_rx_bytes_per_sec / _MB,
+                    "evidence": [
+                        f"RX rate {pod.net_rx_bytes_per_sec / _MB:.2f} MB/s — {pod.net_rx_bytes_per_sec / rx_p75:.1f}x above 75th-percentile baseline",
+                        f"Sustained for 1 consecutive cycle ({COLLECT_INTERVAL_S}s)",
+                        f"Baseline P75: {rx_p75 / _MB:.3f} MB/s",
+                    ],
                 })
 
             # Packet drop
@@ -127,6 +141,12 @@ class NetworkLogAgent(BaseAgent):
                     "namespace": pod.namespace,
                     "container": pod.container,
                     "drop_rate": round(pod.net_rx_drop_rate, 5),
+                    "current_value": pod.net_rx_drop_rate,
+                    "evidence": [
+                        f"Packet drop rate {pod.net_rx_drop_rate:.3%} exceeds {NET_DROP_RATE_THRESHOLD:.1%} threshold",
+                        "Receive buffer likely overwhelmed",
+                        "Upstream sender exceeding pod processing capacity",
+                    ],
                 })
 
         # Dependency confirmation: tx spike from pod_A and rx spike on pod_B within DEP_CONFIRM_LAG_S
@@ -143,6 +163,11 @@ class NetworkLogAgent(BaseAgent):
                         "dest_pod": rx_cn,
                         "dest_namespace": rx_ns,
                         "lag_seconds": round(abs(tx_ts - rx_ts), 1),
+                        "current_value": abs(tx_ts - rx_ts),
+                        "evidence": [
+                            f"{tx_cn} transmit spike and {rx_cn} receive spike within {abs(tx_ts - rx_ts):.0f}s",
+                            "Simultaneous spikes confirm direct communication between pods",
+                        ],
                     })
 
     async def _tail_logs(self) -> None:
@@ -185,6 +210,11 @@ class NetworkLogAgent(BaseAgent):
                     "container": container,
                     "error_count": error_count,
                     "sample_lines": LOG_TAIL_LINES,
+                    "current_value": error_count,
+                    "evidence": [
+                        f"{error_count} ERROR-level log lines in last {LOG_TAIL_LINES} lines",
+                        f"Threshold: {LOG_ERROR_THRESHOLD} errors per {LOG_TAIL_INTERVAL_S}s interval",
+                    ],
                 })
 
             if timeout_count >= LOG_TIMEOUT_THRESHOLD:
@@ -195,6 +225,11 @@ class NetworkLogAgent(BaseAgent):
                     "namespace": ns,
                     "container": container,
                     "timeout_count": timeout_count,
+                    "current_value": timeout_count,
+                    "evidence": [
+                        f"{timeout_count} timeout/connection-refused patterns in last {LOG_TAIL_LINES} lines",
+                        "Upstream dependency likely slow or unavailable",
+                    ],
                 })
 
             # health-scorer pump health parsing
@@ -212,6 +247,12 @@ class NetworkLogAgent(BaseAgent):
                             "bearing_health": float(bearing_health),
                             "state": state,
                             "action": action,
+                            "current_value": float(bearing_health),
+                            "evidence": [
+                                f"health-scorer log: pump={pump} bearing_health={bearing_health} state={state}",
+                                f"Action triggered: {action}",
+                                "Root cause traceable to pump-level fault injection",
+                            ],
                         })
 
     async def _watch_k8s_events(self) -> None:
@@ -238,6 +279,11 @@ class NetworkLogAgent(BaseAgent):
                             "namespace": ns,
                             "k8s_reason": reason,
                             "message": getattr(obj, "message", ""),
+                            "current_value": 1,
+                            "evidence": [
+                                f"Kubernetes control plane event: reason={reason}",
+                                f"Message: {getattr(obj, 'message', '')}",
+                            ],
                         })
             except asyncio.CancelledError:
                 raise
