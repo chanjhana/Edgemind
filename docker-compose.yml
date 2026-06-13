@@ -1,13 +1,19 @@
-# EdgeMind pump-station — Data Synthesis foundation (full stack).
+# EdgeMind pump-station — full pipeline stack (Phase 2).
 #
 #   docker compose up --build -d
 #   docker compose ps
-#   docker compose logs -f feature-extractor
-#   docker compose down            (add -v to also wipe the InfluxDB volume)
+#   docker compose logs -f health-scorer
+#   docker compose down            (add -v to also wipe volumes)
 #
-# Brings up: 3 sensor-sim OPC-UA servers, InfluxDB (data-historian),
-# opc-ua-collector (telemetry → InfluxDB), feature-extractor (features).
-# The decision/alert/export layers are a later pass.
+# Services:
+#   sensor-sim-1/2/3  OPC-UA pump simulators + fault inject API
+#   data-historian    InfluxDB 2.x (bucket: pump_station)
+#   opc-ua-collector  telemetry → pump_telemetry
+#   feature-extractor pump_telemetry → pump_features (30s cycle)
+#   health-scorer     pump_features → pump_health + triggers
+#   alert-manager     alert enrichment + JSONL log on PVC-2  [next]
+#   batch-sync        Parquet export to PVC-2                [next]
+#   mock-upload       simulated cloud upload endpoint        [next]
 #
 # Dev-only InfluxDB credentials below — fine for local; do NOT use in prod.
 
@@ -115,5 +121,44 @@ services:
       LOG_LEVEL: INFO
     restart: unless-stopped
 
+  # ── health-scorer (pump_features → pump_health + HTTP triggers) ──────────────
+  health-scorer:
+    build:
+      context: .
+      dockerfile: health_scorer/Dockerfile
+    image: edgemind/health-scorer:latest
+    container_name: health-scorer
+    depends_on:
+      data-historian:
+        condition: service_healthy
+    environment:
+      <<: *influx-env
+      ALERT_MANAGER_URL: http://alert-manager:8090
+      BATCH_SYNC_URL: http://batch-sync:8091
+      CYCLE_S: "30"
+      LOG_LEVEL: INFO
+    restart: unless-stopped
+
+  # ── alert-manager (enrichment + JSONL log on PVC-2 + REST API) ───────────────
+  alert-manager:
+    build:
+      context: .
+      dockerfile: alert_manager/Dockerfile
+    image: edgemind/alert-manager:latest
+    container_name: alert-manager
+    depends_on:
+      - health-scorer
+    environment:
+      ALERTS_DIR: /data/alerts
+      HOST: "0.0.0.0"
+      PORT: "8090"
+      LOG_LEVEL: INFO
+    volumes:
+      - export-data:/data
+    ports: ["8090:8090"]
+    restart: unless-stopped
+
 volumes:
   influxdb-data:
+  export-data:     # PVC-2 — shared by alert-manager (/data/alerts/) and batch-sync (/data/exports/)
+
