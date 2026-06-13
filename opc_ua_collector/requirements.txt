@@ -1,0 +1,6 @@
+# opc-ua-collector dependencies
+asyncua==1.1.5
+influxdb-client[async]==1.48.0
+
+# Testing
+pytest>=7.0

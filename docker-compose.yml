@@ -1,0 +1,119 @@
+# EdgeMind pump-station — Data Synthesis foundation (full stack).
+#
+#   docker compose up --build -d
+#   docker compose ps
+#   docker compose logs -f feature-extractor
+#   docker compose down            (add -v to also wipe the InfluxDB volume)
+#
+# Brings up: 3 sensor-sim OPC-UA servers, InfluxDB (data-historian),
+# opc-ua-collector (telemetry → InfluxDB), feature-extractor (features).
+# The decision/alert/export layers are a later pass.
+#
+# Dev-only InfluxDB credentials below — fine for local; do NOT use in prod.
+
+x-influx-env: &influx-env
+  INFLUX_URL: http://influxdb:8086
+  INFLUX_TOKEN: edgemind-dev-token
+  INFLUX_ORG: edgemind
+  INFLUX_BUCKET: pump_station
+
+services:
+  # ── Sensors (build from sensor_sim/) ─────────────────────────────────────────
+  sensor-sim-1:
+    build: ./sensor_sim
+    image: edgemind/sensor-sim:latest
+    container_name: sensor-sim-1
+    environment:
+      PUMP_ID: pump1
+      OPC_PORT: "4840"
+      HTTP_PORT: "8080"
+    ports: ["4840:4840", "8080:8080"]
+    restart: unless-stopped
+
+  sensor-sim-2:
+    image: edgemind/sensor-sim:latest
+    container_name: sensor-sim-2
+    depends_on: [sensor-sim-1]
+    environment:
+      PUMP_ID: pump2
+      OPC_PORT: "4841"
+      HTTP_PORT: "8081"
+    ports: ["4841:4841", "8081:8081"]
+    restart: unless-stopped
+
+  sensor-sim-3:
+    image: edgemind/sensor-sim:latest
+    container_name: sensor-sim-3
+    depends_on: [sensor-sim-1]
+    environment:
+      PUMP_ID: pump3
+      OPC_PORT: "4842"
+      HTTP_PORT: "8082"
+    ports: ["4842:4842", "8082:8082"]
+    restart: unless-stopped
+
+  # ── data-historian (InfluxDB 2.x) ────────────────────────────────────────────
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: adminpassword
+      DOCKER_INFLUXDB_INIT_ORG: edgemind
+      DOCKER_INFLUXDB_INIT_BUCKET: pump_station
+      DOCKER_INFLUXDB_INIT_RETENTION: 7d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: edgemind-dev-token
+    ports: ["8086:8086"]
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── opc-ua-collector (telemetry → InfluxDB) ──────────────────────────────────
+  opc-ua-collector:
+    build:
+      context: .
+      dockerfile: opc_ua_collector/Dockerfile
+    image: edgemind/opc-ua-collector:latest
+    container_name: opc-ua-collector
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      sensor-sim-1:
+        condition: service_healthy
+      sensor-sim-2:
+        condition: service_healthy
+      sensor-sim-3:
+        condition: service_healthy
+    environment:
+      <<: *influx-env
+      SENSOR_ENDPOINTS: "pump1=opc.tcp://sensor-sim-1:4840,pump2=opc.tcp://sensor-sim-2:4841,pump3=opc.tcp://sensor-sim-3:4842"
+      LOG_LEVEL: INFO
+    restart: unless-stopped
+
+  # ── feature-extractor (pump_telemetry → pump_features) ───────────────────────
+  feature-extractor:
+    build:
+      context: .
+      dockerfile: feature_extractor/Dockerfile
+    image: edgemind/feature-extractor:latest
+    container_name: feature-extractor
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    environment:
+      <<: *influx-env
+      CYCLE_S: "30"
+      WINDOW: "5m"
+      LEAK_MODE: "false"
+      LOG_LEVEL: INFO
+    restart: unless-stopped
+
+volumes:
+  influxdb-data:

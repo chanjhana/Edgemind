@@ -1,0 +1,7 @@
+# feature-extractor dependencies
+influxdb-client[async]==1.48.0
+numpy>=1.26
+scipy>=1.11
+
+# Testing
+pytest>=7.0
