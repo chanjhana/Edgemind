@@ -1,0 +1,16 @@
+# PVC-2: shared by alert-manager (/data/alerts) and batch-sync (/data/exports)
+# alert-manager writes JSONL alert logs. batch-sync writes Parquet exports.
+# Concurrent writes create intentional storage contention (scenario IC2).
+# Kept at 1Gi so PVC fill rate is visible during demo fault sessions.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: export-data
+  namespace: pump-station
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path

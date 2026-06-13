@@ -1,0 +1,14 @@
+# Caps the entire pump-station namespace.
+# Under combined fault scenarios the namespace approaches this ceiling,
+# making namespace-level pressure visible as well as pod-level pressure.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: pump-station-quota
+  namespace: pump-station
+spec:
+  hard:
+    requests.cpu: "2"
+    limits.cpu: "4"
+    requests.memory: 2Gi
+    limits.memory: 4Gi

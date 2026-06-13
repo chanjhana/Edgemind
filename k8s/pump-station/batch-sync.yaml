@@ -1,0 +1,87 @@
+# Bulk Parquet exporter. Two modes:
+#   Scheduled: every 300s — exports last 5 min of telemetry.
+#   Fault-triggered: POST /trigger from health-scorer.
+# Fault exports are permanent on PVC-2 — PVC fills measurably across demo.
+# Shares export-data PVC with alert-manager (PVC-2 contention is intentional).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch-sync
+  namespace: pump-station
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: batch-sync
+  template:
+    metadata:
+      labels:
+        app: batch-sync
+        component: pipeline
+    spec:
+      containers:
+      - name: batch-sync
+        image: edgemind/batch-sync:dev
+        imagePullPolicy: Never
+        env:
+        - name: INFLUX_URL
+          value: "http://data-historian-influxdb2.pump-station"
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-token
+              key: token
+        - name: INFLUX_ORG
+          value: "edgemind"
+        - name: INFLUX_BUCKET
+          value: "pump_station"
+        - name: EXPORTS_DIR
+          value: "/data/exports"
+        - name: MOCK_UPLOAD_URL
+          value: "http://mock-upload-svc:9000"
+        - name: SCHEDULE_S
+          value: "300"
+        - name: FAULT_WINDOW_MIN
+          value: "30"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8091"
+        - name: LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: 8091
+          name: http
+        volumeMounts:
+        - name: export-data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 600m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8091
+          initialDelaySeconds: 5
+          periodSeconds: 15
+      volumes:
+      - name: export-data
+        persistentVolumeClaim:
+          claimName: export-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: batch-sync-svc
+  namespace: pump-station
+spec:
+  selector:
+    app: batch-sync
+  ports:
+  - name: http
+    port: 8091
+    targetPort: 8091

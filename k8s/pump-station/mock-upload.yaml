@@ -1,0 +1,59 @@
+# Simulated cloud upload endpoint.
+# Receives Parquet files from batch-sync, logs filename+size, discards bytes.
+# Creates the network egress burst visible to the network+log agent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-upload
+  namespace: pump-station
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-upload
+  template:
+    metadata:
+      labels:
+        app: mock-upload
+        component: pipeline
+    spec:
+      containers:
+      - name: mock-upload
+        image: edgemind/mock-upload:dev
+        imagePullPolicy: Never
+        env:
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "9000"
+        - name: LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: 9000
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9000
+          initialDelaySeconds: 5
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-upload-svc
+  namespace: pump-station
+spec:
+  selector:
+    app: mock-upload
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000

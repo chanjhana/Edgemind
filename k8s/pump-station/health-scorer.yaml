@@ -1,0 +1,51 @@
+# Reads pump_features, classifies pump health, triggers alert-manager
+# and batch-sync when WARNING/CRITICAL threshold crossed.
+# Log format: pump=<id> bearing_health=<float> state=<str> action=<str>
+# This log line is parsed by the EdgeMind network+log agent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: health-scorer
+  namespace: pump-station
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: health-scorer
+  template:
+    metadata:
+      labels:
+        app: health-scorer
+        component: pipeline
+    spec:
+      containers:
+      - name: health-scorer
+        image: edgemind/health-scorer:dev
+        imagePullPolicy: Never
+        env:
+        - name: INFLUX_URL
+          value: "http://data-historian-influxdb2.pump-station"
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-token
+              key: token
+        - name: INFLUX_ORG
+          value: "edgemind"
+        - name: INFLUX_BUCKET
+          value: "pump_station"
+        - name: ALERT_MANAGER_URL
+          value: "http://alert-manager-svc:8090"
+        - name: BATCH_SYNC_URL
+          value: "http://batch-sync-svc:8091"
+        - name: CYCLE_S
+          value: "30"
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

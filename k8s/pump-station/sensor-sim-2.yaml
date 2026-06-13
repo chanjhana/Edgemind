@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sensor-sim-2
+  namespace: pump-station
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sensor-sim-2
+  template:
+    metadata:
+      labels:
+        app: sensor-sim-2
+        pump: pump2
+        component: sensor
+    spec:
+      containers:
+      - name: sensor-sim-2
+        image: edgemind/sensor-sim:dev
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: PUMP_ID
+          value: "pump2"
+        - name: OPC_PORT
+          value: "4841"
+        - name: HTTP_PORT
+          value: "8080"
+        - name: LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: 4841
+          name: opcua
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sensor-sim-2-svc
+  namespace: pump-station
+spec:
+  selector:
+    app: sensor-sim-2
+  ports:
+  - name: opcua
+    port: 4841
+    targetPort: 4841
+  - name: http
+    port: 8080
+    targetPort: 8080

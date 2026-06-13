@@ -1,0 +1,51 @@
+# Reads pump_telemetry from InfluxDB every 30s, computes bearing health,
+# writes pump_features back to InfluxDB.
+# LEAK_MODE=false for normal operation.
+# Set LEAK_MODE=true via kubectl set env to trigger memory leak scenario.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feature-extractor
+  namespace: pump-station
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: feature-extractor
+  template:
+    metadata:
+      labels:
+        app: feature-extractor
+        component: pipeline
+    spec:
+      containers:
+      - name: feature-extractor
+        image: edgemind/feature-extractor:dev
+        imagePullPolicy: Never
+        env:
+        - name: INFLUX_URL
+          value: "http://data-historian-influxdb2.pump-station"
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-token
+              key: token
+        - name: INFLUX_ORG
+          value: "edgemind"
+        - name: INFLUX_BUCKET
+          value: "pump_station"
+        - name: CYCLE_S
+          value: "30"
+        - name: WINDOW
+          value: "5m"
+        - name: LEAK_MODE
+          value: "false"
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 600m
+            memory: 512Mi

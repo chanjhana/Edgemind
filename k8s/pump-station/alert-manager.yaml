@@ -1,0 +1,68 @@
+# Receives alerts from health-scorer, enriches, writes JSONL to PVC-2.
+# Shares export-data PVC with batch-sync — concurrent writes create
+# intentional storage contention visible to the storage agent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-manager
+  namespace: pump-station
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-manager
+  template:
+    metadata:
+      labels:
+        app: alert-manager
+        component: pipeline
+    spec:
+      containers:
+      - name: alert-manager
+        image: edgemind/alert-manager:dev
+        imagePullPolicy: Never
+        env:
+        - name: ALERTS_DIR
+          value: "/data/alerts"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8090"
+        - name: LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: 8090
+          name: http
+        volumeMounts:
+        - name: export-data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 5
+          periodSeconds: 15
+      volumes:
+      - name: export-data
+        persistentVolumeClaim:
+          claimName: export-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-manager-svc
+  namespace: pump-station
+spec:
+  selector:
+    app: alert-manager
+  ports:
+  - name: http
+    port: 8090
+    targetPort: 8090

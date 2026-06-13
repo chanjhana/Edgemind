@@ -1,0 +1,50 @@
+# Single process for all 3 sensors — the intended flood bottleneck.
+# SENSOR_ENDPOINTS uses Kubernetes service DNS names within pump-station namespace.
+# INFLUX_URL: data-historian-influxdb2 is the service name created by
+#   helm install data-historian influxdata/influxdb2 -n pump-station
+# Verify actual service name with: kubectl get svc -n pump-station
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opc-ua-collector
+  namespace: pump-station
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opc-ua-collector
+  template:
+    metadata:
+      labels:
+        app: opc-ua-collector
+        component: pipeline
+    spec:
+      containers:
+      - name: opc-ua-collector
+        image: edgemind/opc-ua-collector:dev
+        imagePullPolicy: Never
+        env:
+        - name: SENSOR_ENDPOINTS
+          value: "pump1=opc.tcp://sensor-sim-1-svc:4840,pump2=opc.tcp://sensor-sim-2-svc:4841,pump3=opc.tcp://sensor-sim-3-svc:4842"
+        - name: INFLUX_URL
+          value: "http://data-historian-influxdb2.pump-station"
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-token
+              key: token
+        - name: INFLUX_ORG
+          value: "edgemind"
+        - name: INFLUX_BUCKET
+          value: "pump_station"
+        - name: FLUSH_INTERVAL_S
+          value: "0.5"
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
