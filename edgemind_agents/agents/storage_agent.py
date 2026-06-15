@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 from collections import defaultdict, deque
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional, Set
 
 import numpy as np
 import redis.asyncio as aioredis
@@ -14,8 +14,7 @@ from edgemind_agents.anomaly_types import (
     SEV_WARNING, SEV_CRITICAL,
     STORAGE_IO_SAT_WARNING, STORAGE_IO_SAT_CRITICAL,
     STORAGE_WRITE_BURST_Z,
-    STORAGE_PVC_FILL_WARN, STORAGE_PVC_FILL_CRIT,
-    STORAGE_TTF_WARN_HOURS, STORAGE_TTF_CRIT_HOURS,
+    STORAGE_TTF_CRIT_HOURS,
     STORAGE_ROLL_WINDOW, STORAGE_PVC_ROLL_WINDOW, STORAGE_WARMUP_MIN,
     STORAGE_PVC_REFRESH_S, STORAGE_SUSTAINED_BURST_CYCLES,
     COLLECT_INTERVAL_S,
@@ -197,50 +196,47 @@ class StorageAgent(BaseAgent):
                         ],
                     })
 
-        # PVC fill
+        # PVC fill — slope-only (required for local-path provisioner where fill_ratio is unreliable)
         for pvc_name, pvc in snapshot.pvcs.items():
             win = self._pvc_windows[pvc_name]
             win.append(pvc.used_bytes)
 
-            if pvc.fill_ratio >= STORAGE_PVC_FILL_CRIT:
-                severity = SEV_CRITICAL
-            elif pvc.fill_ratio >= STORAGE_PVC_FILL_WARN:
-                severity = SEV_WARNING
-            else:
-                severity = None
+            if len(win) < 3:
+                continue
+
+            x = list(range(len(win)))
+            slope, _, _, _, _ = stats.linregress(x, list(win))
+
+            if slope <= 0:
+                continue
+
+            slope_bytes_per_sec = slope / COLLECT_INTERVAL_S
+            slope_mb_per_min = (slope_bytes_per_sec * 60) / _MB
+
+            if slope_mb_per_min < 10.0:
+                continue
 
             ttf_hours: Optional[float] = None
-            if len(win) >= 3:
-                x = list(range(len(win)))
-                slope, _, _, _, _ = stats.linregress(x, list(win))
-                if slope > 0:
-                    free = pvc.free_bytes
-                    slope_per_sec = slope / COLLECT_INTERVAL_S
-                    ttf_hours = (free / slope_per_sec) / 3600.0
+            if pvc.free_bytes > 0:
+                ttf_hours = (pvc.free_bytes / slope_bytes_per_sec) / 3600.0
 
-                    if ttf_hours < STORAGE_TTF_CRIT_HOURS:
-                        severity = SEV_CRITICAL
-                    elif ttf_hours < STORAGE_TTF_WARN_HOURS and severity is None:
-                        severity = SEV_WARNING
+            severity = SEV_CRITICAL if ttf_hours is not None and ttf_hours < STORAGE_TTF_CRIT_HOURS \
+                else SEV_WARNING
 
-            if severity:
-                await self.publish_finding({
-                    "anomaly_type": PVC_FILL,
-                    "severity": severity,
-                    "pod": "pvc",
-                    "namespace": pvc.namespace,
-                    "pvc": pvc_name,
-                    "pvc_name": pvc_name,
-                    "fill_ratio": round(pvc.fill_ratio, 3),
-                    "used_bytes": pvc.used_bytes,
-                    "capacity_bytes": pvc.capacity_bytes,
-                    "ttf_hours": round(ttf_hours, 1) if ttf_hours is not None else None,
-                    "current_value": pvc.fill_ratio,
-                    "baseline_value": round(STORAGE_PVC_FILL_WARN, 2),
-                    "deviation": f"fill ratio {pvc.fill_ratio:.1%} vs warning threshold {STORAGE_PVC_FILL_WARN:.0%}",
-                    "eta_minutes": round(ttf_hours * 60, 0) if ttf_hours is not None else None,
-                    "evidence": [
-                        f"PVC {pvc_name} at {pvc.fill_ratio:.1%} capacity ({pvc.used_bytes / _MB:.0f} MB / {pvc.capacity_bytes / _MB:.0f} MB)",
-                        f"TTF: {ttf_hours:.1f} hours at current fill rate" if ttf_hours is not None else "Fill rate insufficient for TTF forecast",
-                    ],
-                })
+            await self.publish_finding({
+                "anomaly_type": PVC_FILL,
+                "severity": severity,
+                "pod": "pvc",
+                "namespace": pvc.namespace,
+                "pvc_name": pvc_name,
+                "slope_mb_per_min": round(slope_mb_per_min, 1),
+                "ttf_hours": round(ttf_hours, 1) if ttf_hours is not None else None,
+                "current_value": pvc.used_bytes / _MB,
+                "baseline_value": 0,
+                "deviation": f"PVC growing at {slope_mb_per_min:.1f} MB/min",
+                "evidence": [
+                    f"PVC {pvc_name} data growing at {slope_mb_per_min:.1f} MB/min",
+                    f"Estimated time to fill: {ttf_hours:.1f} hours" if ttf_hours is not None else "Fill rate accelerating",
+                    "Triggered by sustained write activity (batch export in progress)",
+                ],
+            })
