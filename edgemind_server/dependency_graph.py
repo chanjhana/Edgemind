@@ -60,32 +60,10 @@ class DependencyGraph:
 
     def _discover_from_k8s(self) -> List[tuple]:
         """Discover edges from K8s Service/Endpoint objects."""
-        if self._k8s is None:
-            return []
-        try:
-            edges = []
-            services = self._k8s.list_namespaced_service("pump-station")
-            endpoints = self._k8s.list_namespaced_endpoints("pump-station")
-
-            ep_map = {ep.metadata.name: ep for ep in endpoints.items}
-
-            for svc in services.items:
-                svc_name = svc.metadata.name
-                ep = ep_map.get(svc_name)
-                if not ep or not ep.subsets:
-                    continue
-                # Pods that expose this service
-                for subset in ep.subsets:
-                    for addr in (subset.addresses or []):
-                        if addr.target_ref:
-                            pod_name_prefix = addr.target_ref.name.rsplit("-", 2)[0]
-                            # Callers of this service → pod edges
-                            # (We can't know callers from K8s, so use known pipeline)
-                            edges.append((svc_name, pod_name_prefix))
-            return edges
-        except Exception as e:
-            log.warning("K8s dependency discovery failed: %s", e)
-            return []
+        # Disabled: K8s service discovery adds *-svc nodes that confuse the LLM
+        # into naming a Service as root_cause_pod. KNOWN_PIPELINE provides all edges.
+        log.debug("K8s service discovery disabled — KNOWN_PIPELINE provides all edges")
+        return []
 
     def _build_json(self) -> dict:
         nodes = set()
