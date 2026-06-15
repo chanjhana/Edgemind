@@ -192,7 +192,7 @@ back to its origin, then provide your analysis."""
                     tools=TOOL_DEFINITIONS,
                     tool_choice="auto",
                     temperature=0.1,
-                    max_tokens=2000,
+                    max_completion_tokens=2000,
                 )
             except Exception as e:
                 log.error("LLM API error: %s", e)
