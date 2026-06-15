@@ -1,10 +1,11 @@
 """
-orchestrator.py — AI reasoning layer using Llama-3.3-70b via Groq API.
+orchestrator.py — AI reasoning layer using OpenAI-compatible API.
 
-Groq runs on custom LPU hardware: ~300 tokens/s, 1-2s response vs 2-4min on CPU.
-Free tier: 30 RPM, no credit card. Sign up at console.groq.com.
+Default model: gpt-5.4-nano ($0.20/M input, $1.25/M output, ~$0.002/call)
+Prompt caching: automatic on OpenAI — static system prompt is cached after
+first call, saving ~50% on input tokens for all subsequent calls.
 
-Tool calling uses OpenAI-compatible format (Groq is OpenAI API compatible).
+Tool calling uses OpenAI Chat Completions format.
 """
 
 import json
@@ -24,10 +25,64 @@ from edgemind_server.tools import TOOL_DEFINITIONS, execute_tool
 log = logging.getLogger(__name__)
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", os.environ.get("GROQ_API_KEY", ""))
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.groq.com/openai/v1")
-LLM_MODEL = os.environ.get("LLM_MODEL", os.environ.get("GROQ_MODEL", "gemini-2.0-flash"))
-
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
+LLM_MODEL = os.environ.get("LLM_MODEL", os.environ.get("GROQ_MODEL", "gpt-5.4-nano"))
 MAX_TOOL_TURNS = 4
+
+# Static system prompt — no dynamic content so OpenAI can cache it automatically.
+# The dependency graph moves to the user message (dynamic per-call context).
+SYSTEM_PROMPT = """You are EdgeMind, an AI orchestrator for industrial pump station monitoring on ABB Edgenius.
+
+Your job is to analyze correlated anomaly findings from monitoring agents and identify the ROOT CAUSE.
+
+CONFIDENCE SCORING:
+- >= 0.9: Multi-agent agreement AND temporal ordering matches pipeline topology
+- 0.7-0.9: Two agents agree, causal chain plausible
+- 0.5-0.7: Single agent or ambiguous
+- < 0.5: Insufficient evidence — flag for manual investigation
+
+INVESTIGATION STEPS:
+1. Read findings — identify affected pods and anomaly types
+2. Use query_prometheus to check resource metrics on pods in the causal chain
+3. Use get_pod_logs on the affected pod AND its upstream dependencies to gather
+   raw evidence — error messages, metric values, trends, timestamps
+4. Use get_kubernetes_events if lifecycle issues are suspected
+5. Reason from the evidence to identify root cause — do not assume a fault type,
+   let the data guide your conclusion
+
+CAUSAL CHAIN RULE: Always trace findings back to the origin of the pipeline.
+If a downstream pod (batch-sync, alert-manager, mock-upload) shows anomalies,
+check what triggered it upstream. Use get_pod_logs on the triggering pod and
+continue tracing upstream until you reach the pod that first showed abnormal
+behaviour. The root_cause_pod must be the EARLIEST pod in the causal chain,
+not a downstream effect.
+
+ALERT TYPES:
+- "cascade": fault propagated downstream through the pipeline
+- "contention": pods competing for shared resources
+- "lifecycle": OOMKill, crash loop, eviction
+
+You MUST end your response with a JSON block in this exact format:
+```json
+{
+  "root_cause_pod": "<pod name>",
+  "causal_chain": ["<pod1>", "<pod2>", "<pod3>"],
+  "alert_type": "cascade|contention|lifecycle",
+  "confidence": 0.0,
+  "insight": "<2-3 sentences describing what the evidence shows, in plain English for a field engineer>",
+  "recommendation": "<1 sentence action based on the evidence>"
+}
+```
+
+OPERATOR LANGUAGE — use these names in insight:
+- sensor-sim-1/2/3 → "Pump 1/2/3 sensor"
+- opc-ua-collector → "data collection service"
+- data-historian-influxdb2 → "data historian"
+- feature-extractor → "feature computation service"
+- health-scorer → "health scoring service"
+- alert-manager → "alert service"
+- batch-sync → "bulk export service"
+"""
 
 
 @dataclass
@@ -68,66 +123,6 @@ class OrchestratorResult:
             return "LOW — flagged for manual investigation"
 
 
-SYSTEM_PROMPT_TEMPLATE = """You are EdgeMind, an AI orchestrator for industrial pump station monitoring on ABB Edgenius.
-
-Your job is to analyze correlated anomaly findings from monitoring agents and identify the ROOT CAUSE.
-
-{dependency_graph}
-
-CONFIDENCE SCORING:
-- >= 0.9: Multi-agent agreement AND temporal ordering matches pipeline topology
-- 0.7-0.9: Two agents agree, causal chain plausible
-- 0.5-0.7: Single agent or ambiguous
-- < 0.5: Insufficient evidence — flag for manual investigation
-
-INVESTIGATION STEPS:
-1. Read findings — identify affected pods and anomaly types
-2. Use query_prometheus to check resource metrics on pods in the causal chain
-3. Use get_pod_logs on the affected pod AND its upstream dependencies to gather
-   raw evidence — error messages, metric values, trends, timestamps
-4. Use get_kubernetes_events if lifecycle issues are suspected
-5. Reason from the evidence to identify root cause — do not assume a fault type,
-   let the data guide your conclusion
-
-CAUSAL CHAIN RULE: Always trace findings back to the origin of the pipeline.
-If a downstream pod (batch-sync, alert-manager, mock-upload) shows anomalies,
-check what triggered it upstream. Use get_pod_logs on the triggering pod and
-continue tracing upstream until you reach the pod that first showed abnormal
-behaviour. The root_cause_pod must be the EARLIEST pod in the causal chain,
-not a downstream effect.
-
-When investigating pump_health_critical or network anomalies on export services,
-always fetch logs from feature-extractor and health-scorer to understand what
-physical sensor data caused the cascade.
-
-ALERT TYPES:
-- "cascade": fault propagated downstream through the pipeline
-- "contention": pods competing for shared resources
-- "lifecycle": OOMKill, crash loop, eviction
-
-You MUST end your response with a JSON block in this exact format:
-```json
-{{
-  "root_cause_pod": "<pod name>",
-  "causal_chain": ["<pod1>", "<pod2>", "<pod3>"],
-  "alert_type": "cascade|contention|lifecycle",
-  "confidence": 0.0,
-  "insight": "<2-3 sentences describing what the evidence shows, in plain English for a field engineer>",
-  "recommendation": "<1 sentence action based on the evidence>"
-}}
-```
-
-OPERATOR LANGUAGE — use these names in insight:
-- sensor-sim-1/2/3 → "Pump 1/2/3 sensor"
-- opc-ua-collector → "data collection service"
-- data-historian-influxdb2 → "data historian"
-- feature-extractor → "feature computation service"
-- health-scorer → "health scoring service"
-- alert-manager → "alert service"
-- batch-sync → "bulk export service"
-"""
-
-
 class Orchestrator:
     def __init__(self, dependency_graph: DependencyGraph):
         self._graph = dependency_graph
@@ -136,27 +131,27 @@ class Orchestrator:
             base_url=LLM_BASE_URL,
         )
 
-    def _build_system_prompt(self) -> str:
-        return SYSTEM_PROMPT_TEMPLATE.format(
-            dependency_graph=self._graph.to_prompt_text()
-        )
-
     def _build_user_message(self, bundle: CorrelatedSignalBundle) -> str:
+        """
+        Dynamic per-call message. Includes dependency graph so the static
+        system prompt never changes — maximising OpenAI prompt cache hits.
+        """
         findings_text = json.dumps(bundle.findings, indent=2, default=str)
-        return f"""CORRELATED ANOMALY BUNDLE:
-    Trigger reason: {bundle.trigger_reason}
-    Unique agents: {', '.join(bundle.unique_agents)}
-    Affected pods: {', '.join(bundle.unique_pods)}
-    Finding count: {len(bundle.findings)}
-    Severity counts: {bundle.severity_counts}
+        return f"""PIPELINE CONTEXT:
+{self._graph.to_prompt_text()}
 
-    FINDINGS:
-    {findings_text}
+CORRELATED ANOMALY BUNDLE:
+Trigger reason: {bundle.trigger_reason}
+Unique agents: {', '.join(bundle.unique_agents)}
+Affected pods: {', '.join(bundle.unique_pods)}
+Finding count: {len(bundle.findings)}
+Severity counts: {bundle.severity_counts}
 
-    Investigate this event. Use tools to gather context.
-    For pump_health_critical findings, always fetch feature-extractor logs
-    to determine the specific fault signature before concluding.
-    Then provide your analysis."""
+FINDINGS:
+{findings_text}
+
+Investigate this event. Use tools to gather context, trace the causal chain
+back to its origin, then provide your analysis."""
 
     def _extract_json_result(self, content: str) -> Optional[Dict]:
         import re
@@ -181,7 +176,7 @@ class Orchestrator:
         self._graph.refresh()
 
         messages = [
-            {"role": "system", "content": self._build_system_prompt()},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": self._build_user_message(bundle)},
         ]
 
@@ -207,15 +202,20 @@ class Orchestrator:
             tool_calls = message.tool_calls or []
             content = message.content or ""
 
-            # Append full assistant message (including tool_calls) to history
+            # Log cache usage if available
+            if hasattr(response, "usage") and response.usage:
+                cached = getattr(response.usage, "prompt_tokens_details", None)
+                if cached:
+                    cached_tokens = getattr(cached, "cached_tokens", 0)
+                    if cached_tokens:
+                        log.info("Prompt cache hit: %d cached tokens", cached_tokens)
+
             messages.append(message)
 
-            # No tool calls = final answer
             if not tool_calls:
                 final_content = content
                 break
 
-            # Execute each tool call
             for tc in tool_calls:
                 tool_name = tc.function.name
                 try:
@@ -239,7 +239,9 @@ class Orchestrator:
         if result_json:
             log.info(
                 "Analysis complete: root_cause=%s confidence=%.2f duration=%.1fs",
-                result_json.get("root_cause_pod"), result_json.get("confidence"), duration,
+                result_json.get("root_cause_pod"),
+                result_json.get("confidence"),
+                duration,
             )
             return OrchestratorResult(
                 root_cause_pod=result_json.get("root_cause_pod", "unknown"),
@@ -252,7 +254,7 @@ class Orchestrator:
                 analysis_duration_s=duration,
             )
         else:
-            log.warning("Could not parse orchestrator JSON result. Raw: %s", final_content[:200])
+            log.warning("Could not parse LLM JSON result. Raw: %s", final_content[:200])
             return OrchestratorResult(
                 root_cause_pod=bundle.unique_pods[0] if bundle.unique_pods else "unknown",
                 causal_chain=bundle.unique_pods,
@@ -265,4 +267,4 @@ class Orchestrator:
             )
 
     def close(self):
-        pass  # openai client has no explicit close
+        pass
