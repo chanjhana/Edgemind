@@ -111,7 +111,7 @@ LOG_TIMEOUT_THRESHOLD = 2
 DEP_CONFIRM_LAG_S = 30
 
 # Namespace filter
-WATCHED_NAMESPACES = "pump-station|monitoring"
+WATCHED_NAMESPACES = "pump-station"
 
 # Kubernetes event type strings (used as anomaly_type values in findings)
 K8S_EVICTION = "eviction"
