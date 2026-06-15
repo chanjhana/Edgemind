@@ -11,6 +11,7 @@ These are called synchronously by the orchestrator during tool-use turns.
 
 import logging
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -177,7 +178,13 @@ def get_pod_logs(
     tail_lines = min(tail_lines, 100)
     try:
         v1 = k8s_client.CoreV1Api()
-        # Resolve prefix → full pod name if an exact match doesn't exist
+        # Resolve prefix → full pod name if an exact match doesn't exist.
+        # Strip trailing hash segments first so hallucinated full names like
+        # "opc-ua-collector-7d9c8f6b9c-abc12" reduce to "opc-ua-collector"
+        # before the prefix search.
+        clean_name = re.sub(r'-[a-z0-9]{5,12}-[a-z0-9]{5}$', '', pod_name)
+        if clean_name != pod_name:
+            log.debug("Stripped hash from pod_name: %s → %s", pod_name, clean_name)
         resolved_name = pod_name
         try:
             v1.read_namespaced_pod(name=pod_name, namespace=namespace)
@@ -185,7 +192,7 @@ def get_pod_logs(
             pods = v1.list_namespaced_pod(namespace=namespace)
             match = next(
                 (p.metadata.name for p in pods.items
-                 if p.metadata.name.startswith(pod_name)),
+                 if p.metadata.name.startswith(clean_name)),
                 None,
             )
             if match:
