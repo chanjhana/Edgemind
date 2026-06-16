@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", os.environ.get("GROQ_API_KEY", ""))
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
-LLM_MODEL = os.environ.get("LLM_MODEL", os.environ.get("GROQ_MODEL", "gpt-5.4-nano"))
+LLM_MODEL = os.environ.get("LLM_MODEL", os.environ.get("GROQ_MODEL", "gpt-5.4-mini"))
 MAX_ANALYSIS_TIME_S = 60
 
 # Static system prompt — no dynamic content so OpenAI can cache it automatically.
@@ -49,6 +49,15 @@ INVESTIGATION STEPS:
 4. Use get_kubernetes_events if lifecycle issues are suspected
 5. Reason from the evidence to identify root cause — do not assume a fault type,
    let the data guide your conclusion
+
+EVIDENCE INTEGRITY: Only cite specific facts, numbers, or events that you
+actually observed in tool results. If a log or metric shows no errors,
+state clearly that no errors were found — do not invent failure modes,
+timeouts, or anomalies that are not present in the retrieved data. If you
+are uncertain or the evidence is inconclusive, say so in the insight and
+lower the confidence score accordingly. A correct root_cause_pod paired
+with fabricated supporting evidence is worse than an honest 'insufficient
+evidence' response.
 
 CAUSAL CHAIN RULE: Always trace findings back to the origin of the pipeline.
 If a downstream pod (batch-sync, alert-manager, mock-upload) shows anomalies,
