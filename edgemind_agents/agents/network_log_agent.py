@@ -77,10 +77,7 @@ _ERROR_PATTERNS = [
     re.compile(r"FATAL"),
 ]
 _TIMEOUT_PATTERNS = [
-    re.compile(r"timeout", re.IGNORECASE),
-    re.compile(r"timed out", re.IGNORECASE),
-    re.compile(r"connection refused", re.IGNORECASE),
-    re.compile(r"deadline exceeded", re.IGNORECASE),
+    re.compile(r"^\S.*(?:timed out|connection refused|deadline exceeded)", re.IGNORECASE),
 ]
 _PUMP_HEALTH_RE = re.compile(
     r"pump=(\w+)\s+bearing_health=([\d.]+)\s+state=(\w+)\s+action=(\w+)"
