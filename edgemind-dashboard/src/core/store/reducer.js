@@ -126,6 +126,42 @@ function derivePvc2Ttf(pvcs, prevForecasts) {
   }
 }
 
+function deriveFeatureExtractorOom(metrics, prevForecasts) {
+  const fe = metrics['feature-extractor']
+  if (!fe) return prevForecasts
+
+  const rssArr = (fe.mem_rss || []).filter(v => v != null)
+  if (rssArr.length < 4) return prevForecasts
+
+  const memLimit = fe.mem_limit
+  if (!memLimit) return prevForecasts
+
+  // Use last min(10, n) points; each point is a 15 s scrape interval
+  const window = rssArr.slice(Math.max(0, rssArr.length - 10))
+  const intervals = window.length - 1
+  if (intervals <= 0) return prevForecasts
+
+  const slopePer15s = (window[window.length - 1] - window[0]) / intervals
+  const slopeBytesPerMin = slopePer15s * 4          // 4 × 15 s = 1 min
+  const slopeMbPerMin = slopeBytesPerMin / (1024 * 1024)
+
+  // Only forecast when RSS is actively growing (> 0.05 MB/min)
+  if (slopeMbPerMin <= 0.05) {
+    return { ...prevForecasts, featureExtractor_oom_minutes: null, featureExtractor_rss_slope_mb_per_min: null }
+  }
+
+  const currentRss = window[window.length - 1]
+  const freeBytes = memLimit - currentRss
+  const oomMinutes = freeBytes > 0 ? Math.round(freeBytes / slopeBytesPerMin) : 0
+
+  return {
+    ...prevForecasts,
+    featureExtractor_oom_minutes: oomMinutes,
+    featureExtractor_rss_slope_mb_per_min: Math.round(slopeMbPerMin * 100) / 100,
+    lastUpdated: new Date().toISOString(),
+  }
+}
+
 function checkAgentsReady(heartbeats, findings) {
   const allAlive = ['cpu', 'memory', 'storage', 'network_log'].every(a => heartbeats[a] != null)
   return allAlive && findings.length > 0
@@ -155,8 +191,8 @@ export default function reducer(state, action) {
       Object.entries(pods).forEach(([pod, snap]) => {
         metrics[pod] = updateMetricsPod(metrics, pod, snap)
       })
-      const pvcs    = derivePvcState(state.pvcs, pvcData)
-      const forecasts = derivePvc2Ttf(pvcs, state.forecasts)
+      const pvcs     = derivePvcState(state.pvcs, pvcData)
+      const forecasts = deriveFeatureExtractorOom(metrics, derivePvc2Ttf(pvcs, state.forecasts))
       return { ...state, metrics, pvcs, forecasts }
     }
 

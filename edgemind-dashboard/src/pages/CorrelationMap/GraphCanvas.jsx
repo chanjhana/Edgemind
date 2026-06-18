@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import PipelineGraph from '../../components/graph/PipelineGraph.jsx'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../core/constants/topology.js'
 
-export default function GraphCanvas({ showPvcEdges, showMonitoring, onlyAnomalous, onNodeClick }) {
+export default function GraphCanvas({ showPvcEdges, showMonitoring, onlyAnomalous, onNodeClick, scale = 1 }) {
   const containerRef = useRef(null)
 
   return (
@@ -16,7 +16,7 @@ export default function GraphCanvas({ showPvcEdges, showMonitoring, onlyAnomalou
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-start',
-        padding: 16,
+        padding: 20,
       }}
     >
       <PipelineGraph
@@ -24,6 +24,7 @@ export default function GraphCanvas({ showPvcEdges, showMonitoring, onlyAnomalou
         showMonitoring={showMonitoring}
         onlyAnomalous={onlyAnomalous}
         onNodeClick={onNodeClick}
+        scale={scale}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
       />

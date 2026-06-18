@@ -13,29 +13,38 @@ function podHealth(findings, podName) {
 export default function PodListItem({ podName, isSelected, onClick }) {
   const { findings } = useAppState()
   const health = podHealth(findings, podName)
-  const hasAnomaly = findings.some(f => f.pod === podName)
+  const podFindings = findings.filter(f => f.pod === podName)
+  const worst = podFindings.find(f => f.severity === 'critical') || podFindings.find(f => f.severity === 'warning')
+  const anomalyColor = health === 'critical' ? 'var(--color-danger)' : 'var(--color-warning)'
 
   return (
     <div
       onClick={() => onClick(podName)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '6px 12px', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 7,
+        padding: '5px 12px', cursor: 'pointer',
         borderLeft: `3px solid ${isSelected ? 'var(--color-info)' : 'transparent'}`,
-        background: isSelected ? 'rgba(56,189,248,0.07)' : 'transparent',
-        fontSize: 12,
+        background: isSelected ? 'var(--color-info-tint)' : 'transparent',
+        fontSize: 11,
       }}
     >
       <StatusDot health={health} />
-      <span style={{ color: isSelected ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', flex: 1 }}>
+      <span style={{
+        color: isSelected ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+        flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
         {podName}
       </span>
-      {hasAnomaly && (
+      {worst && (
         <span style={{
-          width: 6, height: 6, borderRadius: '50%',
-          background: health === 'critical' ? 'var(--color-danger)' : 'var(--color-warning)',
-          flexShrink: 0,
-        }} />
+          fontSize: 9, padding: '1px 4px', borderRadius: 3, flexShrink: 0,
+          background: `${anomalyColor}1a`,
+          color: anomalyColor,
+          border: `1px solid ${anomalyColor}`,
+          maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {worst.anomaly_type}
+        </span>
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+﻿import { useNavigate } from 'react-router-dom'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import SeverityBadge from '../../components/ui/SeverityBadge.jsx'
 
@@ -19,7 +19,7 @@ export default function RecentAlertsStrip() {
   const recent = pumpAlerts.slice(0, 8)
 
   return (
-    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-secondary)', borderRadius: 6, padding: '10px 12px' }}>
+    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-card)', borderRadius: 6, padding: '10px 12px' }}>
       <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginBottom: 8, fontWeight: 700 }}>
         PUMP STATION ALERTS
       </div>
@@ -30,7 +30,7 @@ export default function RecentAlertsStrip() {
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '5px 6px', borderRadius: 4, cursor: 'pointer',
-              background: 'var(--color-border-secondary)',
+              background: 'var(--color-bg-chip)',
               fontSize: 11,
             }}
             onClick={() => navigate('/investigate')}

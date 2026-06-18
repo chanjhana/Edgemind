@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+﻿import { useNavigate } from 'react-router-dom'
 import PipelineGraph from '../../components/graph/PipelineGraph.jsx'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../core/constants/topology.js'
 
@@ -12,7 +12,7 @@ export default function MiniGraph() {
     <div
       style={{
         background: 'var(--color-bg-card)',
-        border: '1px solid var(--color-border-secondary)',
+        border: '1px solid var(--color-border-card)',
         borderRadius: 6,
         padding: 8,
         cursor: 'pointer',

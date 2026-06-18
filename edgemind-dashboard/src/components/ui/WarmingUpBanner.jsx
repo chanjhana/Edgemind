@@ -1,7 +1,7 @@
 export default function WarmingUpBanner() {
   return (
     <div style={{
-      background: 'rgba(251,191,36,0.08)',
+      background: 'var(--color-warning-tint)',
       border: '1px solid var(--color-warning-border)',
       borderRadius: 6,
       padding: '8px 12px',

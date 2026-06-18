@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+﻿import { useMemo } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import StatusDot from '../../components/ui/StatusDot.jsx'
 import SeverityBadge from '../../components/ui/SeverityBadge.jsx'
@@ -34,12 +34,12 @@ export default function TopRiskyPods() {
   if (top.length === 0) return null
 
   return (
-    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-secondary)', borderRadius: 6, padding: '10px 12px' }}>
+    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-card)', borderRadius: 6, padding: '10px 12px' }}>
       <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginBottom: 8, fontWeight: 700 }}>TOP RISKY PODS</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
         <tbody>
           {top.map(f => (
-            <tr key={f.finding_id || f.pod} style={{ borderBottom: '1px solid var(--color-border-secondary)' }}>
+            <tr key={f.finding_id || f.pod} style={{ borderBottom: '1px solid var(--color-border-card)' }}>
               <td style={{ padding: '5px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <StatusDot health={f.severity === 'critical' ? 'critical' : f.severity === 'warning' ? 'warning' : 'healthy'} />
                 <span style={{ color: 'var(--color-text-primary)' }}>{f.pod}</span>

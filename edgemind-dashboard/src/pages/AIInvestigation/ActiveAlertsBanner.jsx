@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import SeverityBadge from '../../components/ui/SeverityBadge.jsx'
 
@@ -12,13 +12,13 @@ export default function ActiveAlertsBanner() {
   const critCount = activeAlerts.filter(a => a.severity === 'critical').length
 
   return (
-    <div style={{ background: critCount > 0 ? 'rgba(248,113,113,0.08)' : 'rgba(251,191,36,0.08)', borderBottom: '1px solid var(--color-border-secondary)' }}>
+    <div style={{ background: critCount > 0 ? 'var(--color-danger-tint)' : 'var(--color-warning-tint)', borderBottom: '1px solid var(--color-border-card)' }}>
       <div
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px', cursor: 'pointer' }}
       >
         <span style={{ fontSize: 10, color: critCount > 0 ? 'var(--color-danger)' : 'var(--color-warning)', fontWeight: 700 }}>
-          ▲ {activeAlerts.length} ACTIVE ALERT{activeAlerts.length !== 1 ? 'S' : ''}
+          â–² {activeAlerts.length} ACTIVE ALERT{activeAlerts.length !== 1 ? 'S' : ''}
         </span>
         {critCount > 0 && <span style={{ fontSize: 10, color: 'var(--color-danger)' }}>{critCount} critical</span>}
         <span style={{ flex: 1 }} />

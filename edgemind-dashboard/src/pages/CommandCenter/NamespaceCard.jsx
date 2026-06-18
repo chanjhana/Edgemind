@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+﻿import { useMemo } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import { NAMESPACE_COLORS } from '../../core/constants/colors.js'
 import { POD_NAMESPACES } from '../../core/constants/pods.js'
@@ -54,7 +54,7 @@ export default function NamespaceCard({ namespace }) {
           fontSize: 11,
           color: topFinding.severity === 'critical' ? 'var(--color-danger)' :
                  topFinding.severity === 'warning'  ? 'var(--color-warning)' : 'var(--color-text-secondary)',
-          borderTop: '1px solid var(--color-border-secondary)',
+          borderTop: '1px solid var(--color-border-card)',
           paddingTop: 6,
           marginTop: 4,
         }}>

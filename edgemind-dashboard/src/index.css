@@ -3,36 +3,60 @@
 @tailwind utilities;
 
 :root {
+  /* ── ABB Brand Palette ───────────────────────────────────────────────── */
+  --abb-red:    #ff000f;
+  --abb-black:  #000000;
+  --abb-white:  #ffffff;
+  --abb-gray1:  #262626;
+  --abb-gray2:  #6e6e6e;
+  --abb-gray3:  #a9a9a9;
+  --abb-gray4:  #d2d2d2;
+  --abb-gray5:  #f0f0f0;
+  --abb-gray6:  #fafafa;
+  --abb-blue:   #004c97;
+  --abb-green:  #007a33;
+  --abb-yellow: #ffd100;
+
   /* ── Semantic colors ─────────────────────────────────────────────────── */
-  --color-success:           #2dd4bf;   /* teal-400 */
-  --color-success-border:    #0d9488;   /* teal-600 */
-  --color-warning:           #fbbf24;   /* amber-400 */
-  --color-warning-border:    #d97706;   /* amber-600 */
-  --color-danger:            #f87171;   /* red-400 */
-  --color-danger-border:     #dc2626;   /* red-600 */
-  --color-info:              #38bdf8;   /* sky-400 */
-  --color-info-border:       #0284c7;   /* sky-600 */
-  --color-info-background:   #0c1a2e;
+  --color-success:           #007a33;   /* ABB green */
+  --color-success-border:    #005a26;
+  --color-warning:           #b89400;   /* dark amber — readable on white (ABB yellow is invisible on white) */
+  --color-warning-border:    #7a6200;
+  --color-danger:            #ff000f;   /* ABB red */
+  --color-danger-border:     #cc000c;
+  --color-info:              #004c97;   /* ABB blue */
+  --color-info-border:       #003570;
+  --color-info-background:   #e6eef7;
 
   /* ── Text ────────────────────────────────────────────────────────────── */
-  --color-text-primary:      #f1f5f9;
-  --color-text-secondary:    #94a3b8;
-  --color-text-tertiary:     #64748b;
-  --color-text-info:         #a78bfa;   /* violet-400  — memory/forecast channel */
-  --color-danger-text:       #fca5a5;   /* red-300     — causal path coral */
+  --color-text-primary:      #000000;   /* ABB black */
+  --color-text-secondary:    #3a3a3a;   /* near-black — high contrast on white cards */
+  --color-text-tertiary:     #6e6e6e;   /* ABB gray2 — was gray3 which was invisible */
+  --color-text-info:         #004c97;   /* ABB blue — memory/forecast channel */
+  --color-danger-text:       #cc000c;   /* ABB red dark */
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
-  --color-border-primary:    #334155;
-  --color-border-secondary:  #1e293b;
+  --color-border-primary:    #a9a9a9;   /* ABB gray3 */
+  --color-border-secondary:  #d2d2d2;   /* ABB gray4 — progress tracks, internal dividers */
+  --color-border-card:       #ff000f;   /* ABB red — outer box / card outlines */
+  --color-bg-chip:           #e8e8e8;   /* neutral chip/badge background */
 
   /* ── Backgrounds ─────────────────────────────────────────────────────── */
-  --color-bg-surface:        #0f172a;   /* slate-900 */
-  --color-bg-card:           #1e293b;   /* slate-800 */
-  --color-bg-card-hover:     #263045;
-  --color-bg-input:          #1e293b;
+  --color-bg-surface:        #f0f0f0;   /* ABB gray5 — page / canvas background */
+  --color-bg-card:           #ffffff;   /* ABB white — cards pop out from the gray page */
+  --color-bg-card-hover:     #f5f5f5;
+  --color-bg-input:          #f0f0f0;   /* ABB gray5 — inputs recessed inside white cards */
 
   /* ── Coral (causal path animation) ───────────────────────────────────── */
-  --color-coral:             #fb7185;   /* rose-400 */
+  --color-coral:             #ff000f;   /* ABB red */
+
+  /* ── Tint helpers ────────────────────────────────────────────────────── */
+  --color-danger-tint:   rgba(255, 0, 15, 0.08);
+  --color-warning-tint:  rgba(184, 148, 0, 0.10);   /* matches new dark-amber warning */
+  --color-success-tint:  rgba(0, 122, 51, 0.08);
+  --color-info-tint:     rgba(0, 76, 151, 0.08);
+  --color-shadow:        rgba(0, 0, 0, 0.14);        /* slightly stronger on light bg */
+  --color-overlay:       rgba(0, 0, 0, 0.05);
 
   /* ── Sidebar / header ────────────────────────────────────────────────── */
   --sidebar-width:           220px;
@@ -51,7 +75,7 @@ body,
   padding: 0;
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
-  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -81,5 +105,20 @@ body,
 }
 
 .animate-pulse-border { animation: pulse-border 1.5s ease-in-out infinite; }
+.animate-pulse-dot    { animation: pulse-border 1.2s ease-in-out infinite; }
 .animate-dash-flow    { animation: dash-flow 0.8s linear infinite; }
 .animate-blink        { animation: blink 1s ease-in-out infinite; }
+
+/* pre_oom pulsing event block */
+@keyframes oom-pulse {
+  0%, 100% { opacity: 0.85; box-shadow: 0 0 0 0 rgba(192,38,211,0.6); }
+  50%       { opacity: 1;    box-shadow: 0 0 6px 3px rgba(192,38,211,0.15); }
+}
+.animate-oom-pulse { animation: oom-pulse 1.2s ease-in-out infinite; }
+
+/* Running scenario card glow */
+@keyframes running-glow {
+  0%, 100% { box-shadow: 0 0 4px var(--color-warning), inset 0 0 0 1px var(--color-warning); }
+  50%       { box-shadow: 0 0 14px var(--color-warning), inset 0 0 0 1px var(--color-warning); }
+}
+.animate-running-glow { animation: running-glow 1.8s ease-in-out infinite; }

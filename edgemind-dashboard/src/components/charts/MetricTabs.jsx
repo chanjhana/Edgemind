@@ -19,7 +19,7 @@ export default function MetricTabs({ podName }) {
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '3px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
             border: `1px solid ${tab === t ? 'var(--color-info)' : 'var(--color-border-primary)'}`,
-            background: tab === t ? 'rgba(56,189,248,0.1)' : 'transparent',
+            background: tab === t ? 'var(--color-info-tint)' : 'transparent',
             color: tab === t ? 'var(--color-info)' : 'var(--color-text-secondary)',
           }}>
             {t}

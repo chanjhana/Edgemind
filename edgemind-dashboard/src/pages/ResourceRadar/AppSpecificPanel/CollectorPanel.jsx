@@ -1,8 +1,14 @@
 import { useAppState } from '../../../core/store/AppContext.jsx'
 import TrendSparkline from '../../../components/charts/TrendSparkline.jsx'
 
+const SENSOR_SIMS = [
+  { id: 'sensor-sim-1', pump: 'pump1' },
+  { id: 'sensor-sim-2', pump: 'pump2' },
+  { id: 'sensor-sim-3', pump: 'pump3' },
+]
+
 export default function CollectorPanel({ podName }) {
-  const { metrics } = useAppState()
+  const { metrics, sensorReadings } = useAppState()
   const m = metrics[podName] || {}
 
   const netRxArr = m.net_rx || []
@@ -29,6 +35,26 @@ export default function CollectorPanel({ podName }) {
             {fsWrite != null ? `${(fsWrite / 1024).toFixed(1)}` : '—'}
           </div>
           <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>KB/s to historian</div>
+        </div>
+      </div>
+
+      {/* Subscription status */}
+      <div style={{ background: 'var(--color-bg-surface)', borderRadius: 4, padding: '8px 10px' }}>
+        <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', fontWeight: 700, marginBottom: 6 }}>SENSOR SUBSCRIPTIONS</div>
+        {SENSOR_SIMS.map(({ id, pump }) => {
+          const hasData = sensorReadings[pump] && Object.keys(sensorReadings[pump]).length > 0
+          return (
+            <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 11 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: hasData ? 'var(--color-success)' : 'var(--color-border-primary)', flexShrink: 0 }} />
+              <span style={{ flex: 1, color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>{id}</span>
+              <span style={{ fontSize: 10, color: hasData ? 'var(--color-success)' : 'var(--color-text-tertiary)' }}>
+                {hasData ? 'Connected' : 'No data'}
+              </span>
+            </div>
+          )
+        })}
+        <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 6 }}>
+          Completed/dropped/pending stats unavailable from Prometheus
         </div>
       </div>
 

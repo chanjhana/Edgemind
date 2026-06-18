@@ -1,7 +1,7 @@
 export default function DegradedBanner() {
   return (
     <div style={{
-      background: 'rgba(248,113,113,0.08)',
+      background: 'var(--color-danger-tint)',
       border: '1px solid var(--color-danger-border)',
       borderRadius: 6,
       padding: '8px 12px',

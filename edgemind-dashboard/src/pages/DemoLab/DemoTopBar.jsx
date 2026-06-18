@@ -1,9 +1,9 @@
-import { useState } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import { useFaultInjection } from '../../core/api/useFaultInjection.js'
 
 export default function DemoTopBar() {
-  const { demoLab, ws: wsStatus } = useAppState()
+  const { demoLab, findings, ws: wsStatus } = useAppState()
   const [confirming, setConfirming] = useState(false)
 
   const pump1 = useFaultInjection('pump1')
@@ -11,7 +11,26 @@ export default function DemoTopBar() {
   const pump3 = useFaultInjection('pump3')
 
   const activeFaults = Object.entries(demoLab.activeFaults || {}).filter(([, v]) => v)
-  const anyActive = activeFaults.length > 0
+  const activeFaultCount = activeFaults.length
+  const anyActive = activeFaultCount > 0
+
+  // Determine system status: CRITICAL if any finding in the last 2 min is critical severity
+  const isCritical = useMemo(() => {
+    const cutoff = Date.now() - 2 * 60 * 1000
+    return findings.some(f =>
+      f.severity === 'critical' && f.timestamp && new Date(f.timestamp).getTime() > cutoff
+    )
+  }, [findings])
+
+  const statusColor = isCritical ? 'var(--color-danger)'
+    : anyActive ? 'var(--color-warning)'
+    : 'var(--color-success)'
+
+  const statusIcon = isCritical ? 'âš¡' : anyActive ? 'âš ' : 'âœ“'
+
+  const statusLabel = isCritical ? 'CRITICAL'
+    : anyActive ? `${activeFaultCount} Active Fault${activeFaultCount > 1 ? 's' : ''}`
+    : 'System Nominal'
 
   async function clearAll() {
     await Promise.all([pump1.clear(), pump2.clear(), pump3.clear()])
@@ -21,26 +40,43 @@ export default function DemoTopBar() {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px',
-      borderBottom: '1px solid var(--color-border-secondary)',
+      borderBottom: '1px solid var(--color-border-card)',
       background: 'var(--color-bg-surface)', flexWrap: 'wrap',
     }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)' }}>Demo Lab</span>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: wsStatus?.connected ? 'var(--color-success)' : 'var(--color-danger)',
-        }} />
-        <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-          Backend {wsStatus?.connected ? 'online' : 'offline'}
-        </span>
-      </div>
+      {/* System status indicator */}
+      <span style={{
+        display: 'flex', alignItems: 'center', gap: 5, fontSize: 11,
+        padding: '2px 10px', borderRadius: 10,
+        background: `${statusColor}18`,
+        border: `1px solid ${statusColor}44`,
+        color: statusColor, fontWeight: 600,
+      }}>
+        <span>{statusIcon}</span>
+        <span>{statusLabel}</span>
+      </span>
 
+      {/* Per-pump active fault chips */}
       {activeFaults.map(([pump, fault]) => (
-        <span key={pump} style={{ fontSize: 11, background: 'rgba(248,113,113,0.12)', color: 'var(--color-danger)', padding: '2px 8px', borderRadius: 10 }}>
+        <span key={pump} style={{
+          fontSize: 10, background: 'var(--color-danger-tint)', color: 'var(--color-danger)',
+          padding: '1px 7px', borderRadius: 10, border: '1px solid var(--color-danger-border)',
+        }}>
           {pump}: {fault}
         </span>
       ))}
+
+      {/* Backend connectivity */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: wsStatus?.connected ? 'var(--color-success)' : 'var(--color-danger)',
+        }} />
+        <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>
+          {wsStatus?.connected ? 'online' : 'offline'}
+        </span>
+      </div>
 
       <span style={{ flex: 1 }} />
 
@@ -52,7 +88,7 @@ export default function DemoTopBar() {
             background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)',
           }}
         >
-          Clear All Faults
+          âœ• Clear All Faults
         </button>
       )}
       {confirming && (

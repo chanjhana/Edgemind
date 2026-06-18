@@ -1,4 +1,4 @@
-import CommonInfraPanel from './CommonInfraPanel.jsx'
+﻿import CommonInfraPanel from './CommonInfraPanel.jsx'
 import AppSpecificPanel from './AppSpecificPanel/index.jsx'
 import { POD_ROLES, POD_NAMESPACES, INFO_ONLY_PODS } from '../../core/constants/pods.js'
 import { useAppState } from '../../core/store/AppContext.jsx'
@@ -14,20 +14,20 @@ export default function PodDetailView({ podName, onBack }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-secondary)', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-card)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <button
           onClick={onBack}
           style={{ background: 'transparent', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 13, padding: '2px 4px' }}
         >
-          ← Back
+          â† Back
         </button>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text-primary)' }}>{podName}</span>
             <span style={{
               fontSize: 10, padding: '1px 6px', borderRadius: 10,
-              background: ns === 'pump-station' ? 'rgba(96,165,250,0.15)' : 'rgba(167,139,250,0.15)',
-              color: ns === 'pump-station' ? 'var(--color-info)' : '#a78bfa',
+              background: 'var(--color-info-tint)',
+              color: 'var(--color-info)',
             }}>{ns}</span>
             {worst && <SeverityBadge severity={worst.severity} />}
           </div>
@@ -38,7 +38,7 @@ export default function PodDetailView({ podName, onBack }) {
       <div style={{ flex: 1, overflow: 'auto', display: 'flex', gap: 0 }}>
         {!infoOnly && (
           <div style={{
-            width: 340, flexShrink: 0, borderRight: '1px solid var(--color-border-secondary)',
+            width: 340, flexShrink: 0, borderRight: '1px solid var(--color-border-card)',
             padding: 16, overflowY: 'auto',
           }}>
             <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', fontWeight: 700, marginBottom: 10 }}>INFRASTRUCTURE METRICS</div>

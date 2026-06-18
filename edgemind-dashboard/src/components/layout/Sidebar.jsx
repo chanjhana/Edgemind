@@ -1,13 +1,13 @@
-import { NavLink } from 'react-router-dom'
+﻿import { NavLink } from 'react-router-dom'
 import { useAppState } from '../../core/store/AppContext.jsx'
 
 const NAV = [
   { to: '/',            label: 'Command Center', icon: '⬡' },
   { to: '/radar',       label: 'Resource Radar', icon: '◈' },
-  { to: '/graph',       label: 'Correlation Map', icon: '⬡' },
+  { to: '/graph',       label: 'Dependency Graph', icon: '⬡' },
   { to: '/timeline',    label: 'Anomaly Timeline', icon: '▬' },
-  { to: '/investigate', label: 'AI Investigation', icon: '◎' },
-  { to: '/demo',        label: 'Demo Lab', icon: '⚡' },
+  { to: '/investigate', label: 'AI Investigation', icon: 'â—Ž' },
+  { to: '/demo',        label: 'Demo Lab', icon: 'âš¡' },
 ]
 
 export default function Sidebar() {
@@ -19,7 +19,7 @@ export default function Sidebar() {
       width: 'var(--sidebar-width)',
       flexShrink: 0,
       background: 'var(--color-bg-card)',
-      borderRight: '1px solid var(--color-border-secondary)',
+      borderRight: '1px solid var(--color-border-primary)',
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
@@ -30,11 +30,11 @@ export default function Sidebar() {
         display: 'flex',
         alignItems: 'center',
         padding: '0 16px',
-        borderBottom: '1px solid var(--color-border-secondary)',
+        borderBottom: '3px solid var(--color-danger)',
         gap: 10,
         flexShrink: 0,
       }}>
-        <span style={{ color: 'var(--color-info)', fontSize: 20, fontWeight: 700 }}>◈</span>
+        <span style={{ color: 'var(--color-danger)', fontSize: 20, fontWeight: 700 }}>◈</span>
         <span style={{ color: 'var(--color-text-primary)', fontWeight: 700, fontSize: 14, letterSpacing: '0.05em' }}>
           EdgeMind
         </span>
@@ -50,8 +50,8 @@ export default function Sidebar() {
             padding: '9px 16px',
             color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
             textDecoration: 'none',
-            borderLeft: `3px solid ${isActive ? 'var(--color-info)' : 'transparent'}`,
-            background: isActive ? 'rgba(56,189,248,0.06)' : 'transparent',
+            borderLeft: `3px solid ${isActive ? 'var(--color-danger)' : 'transparent'}`,
+            background: isActive ? 'rgba(255,0,15,0.06)' : 'transparent',
             fontSize: 13,
             transition: 'all 0.1s',
           })}>
@@ -64,7 +64,7 @@ export default function Sidebar() {
       {/* Footer badge */}
       <div style={{
         padding: '10px 16px',
-        borderTop: '1px solid var(--color-border-secondary)',
+        borderTop: '1px solid var(--color-border-card)',
         color: 'var(--color-text-tertiary)',
         fontSize: 11,
       }}>

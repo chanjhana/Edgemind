@@ -8,7 +8,7 @@ export default function TwoDomainContrast({ alert }) {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
-      <div style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: 6, padding: '10px 12px' }}>
+      <div style={{ background: 'var(--color-info-tint)', border: '1px solid rgba(0,76,151,0.20)', borderRadius: 6, padding: '10px 12px' }}>
         <div style={{ fontSize: 10, color: 'var(--color-info)', fontWeight: 700, marginBottom: 6 }}>PUMP / PHYSICAL</div>
         {pumpSide ? (
           <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{pumpSide}</div>
@@ -16,8 +16,8 @@ export default function TwoDomainContrast({ alert }) {
           <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>No pump-domain data</div>
         )}
       </div>
-      <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 6, padding: '10px 12px' }}>
-        <div style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700, marginBottom: 6 }}>EDGE INFRA / K8S</div>
+      <div style={{ background: 'var(--color-info-tint)', border: '1px solid rgba(0,76,151,0.20)', borderRadius: 6, padding: '10px 12px' }}>
+        <div style={{ fontSize: 10, color: 'var(--color-info)', fontWeight: 700, marginBottom: 6 }}>EDGE INFRA / K8S</div>
         {infraSide ? (
           <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{infraSide}</div>
         ) : (

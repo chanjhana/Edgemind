@@ -1,4 +1,4 @@
-import AgentTag from '../../components/ui/AgentTag.jsx'
+﻿import AgentTag from '../../components/ui/AgentTag.jsx'
 import { useAppState } from '../../core/store/AppContext.jsx'
 
 export default function CausalChainSteps({ chain }) {
@@ -14,7 +14,7 @@ export default function CausalChainSteps({ chain }) {
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-              background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-secondary)',
+              background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-card)',
               borderRadius: 6, padding: '4px 8px', minWidth: 80,
             }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)' }}>{pod}</span>

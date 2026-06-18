@@ -1,37 +1,47 @@
 import { useState } from 'react'
 import AlertBracketPopover from './AlertBracketPopover.jsx'
 
-export default function CorrelationBracket({ alert, xLeft, width, rowCount }) {
+export default function CorrelationBracket({ alert: a, xScale, index }) {
   const [open, setOpen] = useState(false)
-  const h = rowCount * 28 + 4
-  const w = Math.max(4, width)
+
+  // Use window_start/window_end if available (from backend spec), else fall back to timestamp + duration_s
+  const startMs = a.window_start ? new Date(a.window_start).getTime()
+    : a.timestamp ? new Date(a.timestamp).getTime() : null
+  const endMs = a.window_end ? new Date(a.window_end).getTime()
+    : startMs ? startMs + (a.duration_s || 60) * 1000 : null
+
+  if (startMs == null) return null
+
+  const xLeft = Math.max(0, xScale(startMs))
+  const xRight = endMs ? xScale(endMs) : xLeft + 80
+  const width = Math.max(40, xRight - xLeft)
+  const top = index * 26 + 4
 
   return (
     <>
       <div
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        title={`${alert.alert_type} · click for detail`}
+        title={`${a.alert_type} · click for detail`}
         style={{
           position: 'absolute',
-          left: xLeft, top: 0,
-          width: w, height: h,
-          background: 'rgba(248,113,113,0.06)',
-          border: '1px dashed rgba(248,113,113,0.4)',
+          left: xLeft,
+          top,
+          width,
+          height: 20,
+          background: 'var(--color-info-tint)',
+          border: '1px solid rgba(0,76,151,0.35)',
           borderRadius: 4,
           cursor: 'pointer',
-          zIndex: 1,
+          display: 'flex', alignItems: 'center', paddingLeft: 6,
+          overflow: 'hidden',
         }}
       >
-        <span style={{
-          position: 'absolute', top: 2, left: 4,
-          fontSize: 9, color: 'var(--color-danger)', fontWeight: 700,
-          background: 'rgba(248,113,113,0.12)', padding: '1px 4px', borderRadius: 3,
-          whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: w - 8,
-        }}>
-          {alert.alert_type?.slice(0, 18)}
+        <span style={{ fontSize: 9, color: 'var(--color-info)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+          {a.alert_type?.slice(0, 18)}
+          {a.confidence != null ? ` · ${(a.confidence * 100).toFixed(0)}%` : ''}
         </span>
       </div>
-      {open && <AlertBracketPopover alert={alert} onClose={() => setOpen(false)} />}
+      {open && <AlertBracketPopover alert={a} onClose={() => setOpen(false)} />}
     </>
   )
 }

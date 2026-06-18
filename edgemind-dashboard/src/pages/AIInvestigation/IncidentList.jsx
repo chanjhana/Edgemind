@@ -1,4 +1,4 @@
-import { useAppState } from '../../core/store/AppContext.jsx'
+﻿import { useAppState } from '../../core/store/AppContext.jsx'
 import SeverityBadge from '../../components/ui/SeverityBadge.jsx'
 import ConfidenceTier from '../../components/ui/ConfidenceTier.jsx'
 
@@ -12,7 +12,7 @@ export default function IncidentList({ selectedId, onSelect }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border-secondary)', fontSize: 11, fontWeight: 700, color: 'var(--color-text-tertiary)' }}>
+      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border-card)', fontSize: 11, fontWeight: 700, color: 'var(--color-text-tertiary)' }}>
         INCIDENTS ({correlatedAlerts.length})
       </div>
       <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -28,8 +28,8 @@ export default function IncidentList({ selectedId, onSelect }) {
               onClick={() => onSelect(id)}
               style={{
                 padding: '8px 12px', cursor: 'pointer',
-                background: selected ? 'rgba(96,165,250,0.08)' : 'transparent',
-                borderBottom: '1px solid var(--color-border-secondary)',
+                background: selected ? 'var(--color-info-tint)' : 'transparent',
+                borderBottom: '1px solid var(--color-border-card)',
                 borderLeft: `3px solid ${selected ? 'var(--color-info)' : 'transparent'}`,
               }}
             >

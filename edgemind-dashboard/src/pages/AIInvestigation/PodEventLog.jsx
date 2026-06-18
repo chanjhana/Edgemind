@@ -1,4 +1,4 @@
-import { useAppState } from '../../core/store/AppContext.jsx'
+﻿import { useAppState } from '../../core/store/AppContext.jsx'
 
 export default function PodEventLog({ podName }) {
   const { podEvents } = useAppState()
@@ -16,7 +16,7 @@ export default function PodEventLog({ podName }) {
     <div>
       <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', fontWeight: 700, marginBottom: 6 }}>POD EVENTS</div>
       {events.map((e, i) => (
-        <div key={i} style={{ fontSize: 11, padding: '3px 0', borderBottom: '1px solid var(--color-border-secondary)' }}>
+        <div key={i} style={{ fontSize: 11, padding: '3px 0', borderBottom: '1px solid var(--color-border-card)' }}>
           <span style={{ color: e.type === 'Warning' ? 'var(--color-warning)' : 'var(--color-text-tertiary)', marginRight: 6 }}>{e.type}</span>
           <span style={{ color: 'var(--color-text-secondary)' }}>{e.reason}: {e.message}</span>
         </div>

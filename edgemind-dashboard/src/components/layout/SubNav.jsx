@@ -1,11 +1,11 @@
-export default function SubNav({ tabs, active, onSelect, actions }) {
+﻿export default function SubNav({ tabs, active, onSelect, actions }) {
   return (
     <div style={{
       display: 'flex',
       alignItems: 'center',
       gap: 4,
       padding: '0 0 12px 0',
-      borderBottom: '1px solid var(--color-border-secondary)',
+      borderBottom: '1px solid var(--color-border-card)',
       marginBottom: 12,
     }}>
       {tabs.map(tab => (
@@ -16,7 +16,7 @@ export default function SubNav({ tabs, active, onSelect, actions }) {
             padding: '4px 12px',
             borderRadius: 20,
             border: `1px solid ${active === tab.id ? 'var(--color-info)' : 'var(--color-border-primary)'}`,
-            background: active === tab.id ? 'rgba(56,189,248,0.12)' : 'transparent',
+            background: active === tab.id ? 'var(--color-info-tint)' : 'transparent',
             color: active === tab.id ? 'var(--color-info)' : 'var(--color-text-secondary)',
             cursor: 'pointer',
             fontSize: 12,

@@ -4,10 +4,11 @@ import TimelineCanvas from './TimelineCanvas.jsx'
 import HistoryPanel from './HistoryPanel.jsx'
 
 export default function AnomalyTimeline() {
-  const [windowMs, setWindowMs] = useState(15 * 60 * 1000)
+  const [windowMs, setWindowMs] = useState(30 * 60 * 1000)
   const [typeFilter, setTypeFilter] = useState('all')
   const [nsFilter, setNsFilter] = useState('')
   const [paused, setPaused] = useState(false)
+  const [panOffsetMs, setPanOffsetMs] = useState(0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -16,12 +17,14 @@ export default function AnomalyTimeline() {
         typeFilter={typeFilter} setTypeFilter={setTypeFilter}
         nsFilter={nsFilter} setNsFilter={setNsFilter}
         paused={paused} setPaused={setPaused}
+        panOffsetMs={panOffsetMs} setPanOffsetMs={setPanOffsetMs}
       />
       <TimelineCanvas
         windowMs={windowMs} typeFilter={typeFilter}
         nsFilter={nsFilter} paused={paused}
+        panOffsetMs={panOffsetMs}
       />
-      <HistoryPanel />
+      <HistoryPanel typeFilter={typeFilter} nsFilter={nsFilter} windowMs={windowMs} panOffsetMs={panOffsetMs} />
     </div>
   )
 }

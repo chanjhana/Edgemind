@@ -1,4 +1,4 @@
-import { useAppState } from '../../core/store/AppContext.jsx'
+﻿import { useAppState } from '../../core/store/AppContext.jsx'
 import ConfidenceTier from '../../components/ui/ConfidenceTier.jsx'
 import SeverityBadge from '../../components/ui/SeverityBadge.jsx'
 import AgentTag from '../../components/ui/AgentTag.jsx'
@@ -14,7 +14,7 @@ function CausalChainInline({ chain = [] }) {
           {i > 0 && <span style={{ color: 'var(--color-text-tertiary)' }}>→</span>}
           <span style={{
             padding: '1px 6px', borderRadius: 3,
-            background: 'var(--color-border-secondary)',
+            background: 'var(--color-bg-chip)',
             color: 'var(--color-text-primary)',
           }}>{pod}</span>
         </span>
@@ -29,7 +29,7 @@ function TwoDomainContrast({ alert }) {
   if (!pumpAlert && !alert.root_cause_pod) return null
   return (
     <div style={{
-      background: 'rgba(56,189,248,0.06)',
+      background: 'var(--color-info-tint)',
       border: '1px solid var(--color-info-border)',
       borderRadius: 4,
       padding: '8px 10px',
@@ -66,7 +66,7 @@ export default function IncidentCard() {
   return (
     <div style={{
       background: 'var(--color-bg-card)',
-      border: '1px solid var(--color-border-secondary)',
+      border: '1px solid var(--color-border-card)',
       borderRadius: 6,
       padding: '14px 16px',
       display: 'flex',
@@ -78,14 +78,14 @@ export default function IncidentCard() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{
           padding: '1px 8px', borderRadius: 4,
-          background: 'var(--color-border-secondary)', color: 'var(--color-text-tertiary)', fontSize: 11,
+          background: 'var(--color-bg-chip)', color: 'var(--color-text-tertiary)', fontSize: 11,
         }}>
           {a.timestamp ? new Date(a.timestamp).toLocaleTimeString() : 'Recent'}
         </span>
         {a.alert_type && (
           <span style={{
             padding: '1px 8px', borderRadius: 4,
-            background: 'rgba(56,189,248,0.1)', color: 'var(--color-info)', fontSize: 11,
+            background: 'var(--color-info-tint)', color: 'var(--color-info)', fontSize: 11,
           }}>
             {a.alert_type}
           </span>

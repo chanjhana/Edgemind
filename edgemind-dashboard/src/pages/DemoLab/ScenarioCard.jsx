@@ -1,49 +1,48 @@
+import { useMemo } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
-
-function StepRow({ step, status }) {
-  const color = status === 'done' ? 'var(--color-success)'
-    : status === 'active' ? 'var(--color-warning)'
-    : 'var(--color-text-tertiary)'
-  const icon = status === 'done' ? '✓' : status === 'active' ? '●' : '○'
-
-  return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, padding: '2px 0' }}>
-      <span style={{ color, width: 12, flexShrink: 0 }}>{icon}</span>
-      <span style={{ color: status === 'pending' ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)' }}>{step.label}</span>
-    </div>
-  )
-}
+import AgentTag from '../../components/ui/AgentTag.jsx'
+import MiniProgressBar from '../../components/ui/MiniProgressBar.jsx'
+import ScenarioProgress from './ScenarioProgress.jsx'
 
 export default function ScenarioCard({ scenario, running, completed, onLaunch, onClear, disabled }) {
-  const { findings, correlatedAlerts } = useAppState()
+  const { findings, correlatedAlerts, demoLab } = useAppState()
 
-  const stepStatuses = scenario.steps.map(step => {
-    if (step.waitForAlert) {
-      const hit = correlatedAlerts.some(a => a.timestamp && (Date.now() - new Date(a.timestamp).getTime()) < 10 * 60 * 1000)
-      if (hit) return 'done'
-    }
-    if (step.anomalyType && step.pod) {
-      const hit = findings.some(f => f.anomaly_type === step.anomalyType && f.pod === step.pod)
-      if (hit) return 'done'
-    }
-    if (!step.anomalyType) {
-      if (running || completed) return 'done'
-    }
-    return 'pending'
-  })
+  const startedAt = running ? demoLab.scenarioStartedAt : null
+  const startCutoff = startedAt ? new Date(startedAt).getTime() : 0
 
-  const doneCount = stepStatuses.filter(s => s === 'done').length
+  // Count completed steps to drive the progress bar
+  const doneCount = useMemo(() => {
+    return scenario.steps.filter(step => {
+      if (step.waitForAlert) {
+        return correlatedAlerts.some(a => a.timestamp && new Date(a.timestamp).getTime() > startCutoff)
+      }
+      if (step.anomalyType && step.pod) {
+        return findings.some(f =>
+          f.anomaly_type === step.anomalyType &&
+          f.pod === step.pod &&
+          (!startedAt || new Date(f.timestamp).getTime() >= startCutoff)
+        )
+      }
+      return running || completed
+    }).length
+  }, [scenario.steps, findings, correlatedAlerts, running, completed, startCutoff, startedAt])
+
   const totalCount = scenario.steps.length
-  const activeIdx = running ? stepStatuses.findIndex(s => s !== 'done') : -1
-  const finalStatuses = stepStatuses.map((s, i) => (i === activeIdx ? 'active' : s))
+  const progressPct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0
+  const elapsed = running && demoLab.scenarioStartedAt
+    ? Math.max(0, Math.round((Date.now() - new Date(demoLab.scenarioStartedAt).getTime()) / 1000))
+    : null
 
   const borderColor = completed ? 'var(--color-success)' : running ? 'var(--color-warning)' : 'var(--color-border-secondary)'
 
   return (
-    <div style={{
-      background: 'var(--color-bg-card)', border: `1px solid ${borderColor}`,
-      borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 200,
-    }}>
+    <div
+      className={running ? 'animate-running-glow' : ''}
+      style={{
+        background: 'var(--color-bg-card)', border: `1px solid ${borderColor}`,
+        borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 200,
+      }}
+    >
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 3 }}>
           {scenario.title}
@@ -55,15 +54,19 @@ export default function ScenarioCard({ scenario, running, completed, onLaunch, o
         Expected: {scenario.expectedDuration}
       </div>
 
-      <div>
-        {scenario.steps.map((step, i) => (
-          <StepRow key={step.id} step={step} status={finalStatuses[i]} />
-        ))}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {(scenario.expectedAgents || []).map(agent => <AgentTag key={agent} agent={agent} />)}
       </div>
 
+      <ScenarioProgress scenario={scenario} running={running} startedAt={startedAt} />
+
       {running && (
-        <div style={{ fontSize: 11, color: 'var(--color-warning)' }}>
-          Progress: {doneCount}/{totalCount} steps
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-warning)' }}>
+            <span>Progress: {doneCount}/{totalCount} steps</span>
+            {elapsed != null && <span>{Math.floor(elapsed / 60)}m {elapsed % 60}s</span>}
+          </div>
+          <MiniProgressBar value={progressPct} max={100} label="" />
         </div>
       )}
 
@@ -90,7 +93,7 @@ export default function ScenarioCard({ scenario, running, completed, onLaunch, o
               border: '1px solid var(--color-border-primary)', fontSize: 12,
             }}
           >
-            {completed ? 'Reset' : 'Abort'}
+            {completed ? 'Reset' : '⏹ Stop & Clear'}
           </button>
         )}
       </div>
