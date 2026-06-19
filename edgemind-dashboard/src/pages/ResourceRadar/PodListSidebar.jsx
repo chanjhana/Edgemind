@@ -27,16 +27,17 @@ export default function PodListSidebar({ selectedPod, onSelectPod, nsFilter = 'a
             onClick={() => setOpen(p => ({ ...p, [ns]: !p[ns] }))}
             style={{
               padding: '6px 12px', cursor: 'pointer',
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
-              color: 'var(--color-text-tertiary)',
-              display: 'flex', justifyContent: 'space-between',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               background: 'var(--color-bg-card)',
               borderBottom: '1px solid var(--color-border-card)',
               userSelect: 'none',
             }}
           >
-            <span>{ns.toUpperCase()}</span>
-            <span>{open[ns] ? '▾' : '▸'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ display: 'inline-block', width: 3, height: 14, borderRadius: 2, background: 'var(--color-danger)', flexShrink: 0 }} />
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--color-text-primary)', textTransform: 'uppercase' }}>{ns}</span>
+            </span>
+            <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>{open[ns] ? '▾' : '▸'}</span>
           </div>
           {open[ns] && pods.map(pod => (
             <PodListItem

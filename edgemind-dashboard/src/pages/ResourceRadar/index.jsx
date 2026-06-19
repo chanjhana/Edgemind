@@ -61,8 +61,11 @@ export default function ResourceRadar() {
         display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
         background: 'var(--color-bg-card)', flexWrap: 'wrap',
       }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)', marginRight: 4 }}>
-          Pod Metrics &amp; Health
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginRight: 4 }}>
+          <span style={{ display: 'inline-block', width: 3, height: 14, borderRadius: 2, background: 'var(--color-danger)', flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--color-text-primary)', textTransform: 'uppercase' }}>
+            Pod Metrics &amp; Health
+          </span>
         </span>
 
         {/* Namespace filter pills */}
