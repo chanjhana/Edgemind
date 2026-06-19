@@ -172,14 +172,22 @@ def _scrape_metrics() -> Dict[str, Any]:
 
 def _normalize_alert(result_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Add frontend-expected fields to orchestrator result dict."""
+    import uuid
     out = dict(result_dict)
     out["nlp_summary"] = out.get("nlp_summary") or out.get("insight", "")
+    out.setdefault("id", str(uuid.uuid4()))
     out.setdefault("llm_available", True)
     out.setdefault("causal_chain", [])
     out.setdefault("root_cause_pod", None)
     out.setdefault("alert_type", "unknown")
     out.setdefault("confidence", 0.0)
     out.setdefault("recommendation", "")
+    # Promote bundle window timestamps to top-level for timeline rendering
+    bundle = out.get("bundle", {})
+    out.setdefault("window_start", bundle.get("window_start") or out.get("timestamp"))
+    out.setdefault("window_end", bundle.get("window_end") or out.get("timestamp"))
+    # Alias duration field name the frontend expects
+    out.setdefault("analysis_time_s", out.get("analysis_duration_s", 0))
     return out
 
 
