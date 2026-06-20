@@ -70,14 +70,21 @@ export function useWebSocket() {
       case 'new_alert': {
         const alert = data.alert || data.payload || data;
         dispatch({ type: 'ADD_ALERT', payload: alert });
-        // Fire push notification for CRITICAL alerts
+
         if (alert.severity === 'CRITICAL') {
+          // Fire OS push notification + in-app toast for CRITICAL
           scheduleAlertNotification(alert);
           dispatch({
             type: 'SET_TOAST',
             payload: `CRITICAL: ${alert.pod_id || alert.title}`,
           });
-          // Auto-clear toast after 4 seconds
+          setTimeout(() => dispatch({ type: 'SET_TOAST', payload: null }), 5000);
+        } else if (alert.severity === 'WARNING') {
+          // In-app toast only for WARNING (no OS push)
+          dispatch({
+            type: 'SET_TOAST',
+            payload: `WARNING: ${alert.pod_id || alert.title}`,
+          });
           setTimeout(() => dispatch({ type: 'SET_TOAST', payload: null }), 4000);
         }
         break;

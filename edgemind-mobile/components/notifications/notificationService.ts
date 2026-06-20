@@ -20,9 +20,10 @@ let _permissionGranted = false;
  * Call this once at app startup (e.g. from WsBootstrap or _layout).
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
+  // Local notifications can be tested on Emulators/Simulators.
+  // We only log a warning but still request permission to allow testing.
   if (!Device.isDevice) {
-    console.warn('[Notifications] Push notifications only work on physical devices.');
-    return false;
+    console.log('[Notifications] Running on simulator/emulator. Local notifications are allowed for testing.');
   }
 
   const { status: existing } = await Notifications.getPermissionsAsync();

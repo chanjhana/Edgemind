@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, RefreshControl,
+  View, Text, StyleSheet, ScrollView, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useActiveAlert, useAlerts, useSensors, useApp } from '../../core/store/AppContext';
@@ -11,11 +11,11 @@ import InvestigationModal from '../../components/alerts/InvestigationModal';
 import { Colors, Typography, Spacing } from '../../components/ui/tokens';
 
 export default function AlertsScreen() {
-  const activeAlert = useActiveAlert();
-  const alerts      = useAlerts();
-  const sensors     = useSensors();
+  const activeAlert  = useActiveAlert();
+  const alerts       = useAlerts();
+  const sensors      = useSensors();
   const { dispatch } = useApp();
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal]   = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const pump1Readings = sensors['pump1'] ?? [];
