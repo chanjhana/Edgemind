@@ -122,3 +122,24 @@ body,
   50%       { box-shadow: 0 0 14px var(--color-warning), inset 0 0 0 1px var(--color-warning); }
 }
 .animate-running-glow { animation: running-glow 1.8s ease-in-out infinite; }
+
+/* Global Header Nav Link */
+.nav-link-hover {
+  position: relative;
+}
+.nav-link-hover::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50%;
+  height: 4px;
+  background-color: transparent;
+  border-radius: 4px 4px 0 0;
+  transition: background-color 0.15s;
+}
+.nav-link-hover.active::after,
+.nav-link-hover:hover::after {
+  background-color: var(--color-danger);
+}

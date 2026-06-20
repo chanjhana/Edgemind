@@ -3,12 +3,12 @@ import { NavLink } from 'react-router-dom'
 import { useAppState } from '../../core/store/AppContext.jsx'
 
 const NAV = [
-  { to: '/',            label: 'Command Center' },
-  { to: '/radar',       label: 'Resource Radar'  },
-  { to: '/graph',       label: 'Dependency Graph' },
+  { to: '/',            label: 'Overview' },
+  { to: '/radar',       label: 'Pod Stats'  },
+  { to: '/graph',       label: 'Fault Lineage' },
   { to: '/timeline',    label: 'Anomaly Timeline' },
-  { to: '/investigate', label: 'AI Investigation' },
-  { to: '/demo',        label: 'Demo Lab'         },
+  { to: '/investigate', label: 'Diagnostics' },
+  { to: '/demo',        label: 'Fault Demo'         },
 ]
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -92,18 +92,17 @@ export default function GlobalHeader() {
             key={to}
             to={to}
             end={to === '/'}
+            className={({ isActive }) => `nav-link-hover ${isActive ? 'active' : ''}`}
             style={({ isActive }) => ({
               display: 'flex',
               alignItems: 'center',
-              padding: '0 14px',
+              padding: '0 24px',
               color: isActive ? 'var(--color-danger)' : 'var(--color-text-primary)',
               textDecoration: 'none',
               fontSize: 13,
-              fontWeight: isActive ? 600 : 400,
-              borderBottom: `4px solid ${isActive ? 'var(--color-danger)' : 'transparent'}`,
-              marginBottom: -1,
+              fontWeight: 700,
               whiteSpace: 'nowrap',
-              transition: 'color 0.15s',
+              transition: 'all 0.15s',
             })}
           >
             {label}
