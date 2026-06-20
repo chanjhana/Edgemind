@@ -43,6 +43,7 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from kubernetes import client as k8s_client, config as k8s_config
 
 from edgemind_server.correlation_filter import CorrelationFilter, CorrelatedSignalBundle
@@ -353,6 +354,32 @@ async def clear_alerts():
     if _correlation_filter:
         _correlation_filter.reset_cooldown()
     return JSONResponse({"cleared": True})
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []
+
+@app.post("/api/chat")
+async def handle_chat(req: ChatRequest):
+    if not _orchestrator:
+        return JSONResponse({"response": "Orchestrator not initialized."}, status_code=503)
+    try:
+        loop = asyncio.get_running_loop()
+        metrics = await loop.run_in_executor(_executor, _scrape_metrics)
+        
+        response = await loop.run_in_executor(
+            _executor,
+            _orchestrator.answer_user_query,
+            req.message,
+            req.history,
+            list(_recent_findings),
+            list(_recent_alerts),
+            metrics
+        )
+        return JSONResponse({"response": response})
+    except Exception as e:
+        log.error("Chat handler failed: %s", e)
+        return JSONResponse({"response": f"Error calling Copilot: {str(e)}"}, status_code=500)
 
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────

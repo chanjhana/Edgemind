@@ -41,12 +41,12 @@ spec:
             - name: LLM_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: llm-credentials
+                  name: groq-credentials
                   key: api-key
             - name: LLM_BASE_URL
-              value: "https://generativelanguage.googleapis.com/v1beta/openai/"
+              value: "https://api.groq.com/openai/v1"
             - name: LLM_MODEL
-              value: "gemini-2.0-flash"
+              value: "llama-3.3-70b-versatile"
             - name: LOG_LEVEL
               value: "INFO"
           resources:

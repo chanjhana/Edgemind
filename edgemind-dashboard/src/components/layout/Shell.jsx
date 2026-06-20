@@ -4,6 +4,7 @@ import { useGraph } from '../../core/api/useGraph.js'
 import { usePumpAlerts } from '../../core/api/usePumpAlerts.js'
 import { useSensorReadings } from '../../core/api/useSensorReadings.js'
 import GlobalHeader from './GlobalHeader.jsx'
+import CopilotChat from '../ui/CopilotChat.jsx'
 
 function DataHooks() {
   useWebSocket()
@@ -18,7 +19,7 @@ export default function Shell({ children }) {
   const isEdgeToEdge = ['/radar', '/graph', '/timeline', '/demo'].includes(location.pathname)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
       <DataHooks />
       <GlobalHeader />
       <main style={{
@@ -29,6 +30,7 @@ export default function Shell({ children }) {
       }}>
         {children}
       </main>
+      <CopilotChat />
     </div>
   )
 }

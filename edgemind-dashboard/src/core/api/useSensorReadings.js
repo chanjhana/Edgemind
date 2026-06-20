@@ -20,7 +20,12 @@ export function useSensorReadings() {
           const res = await fetch(`${base}/status`)
           if (!res.ok) return
           const data = await res.json()
-          dispatch({ type: SENSOR_READINGS_UPDATE, payload: { pumpId, data } })
+          const flattened = {
+            ...data,
+            ...(data.readings || {}),
+            emission_hz: data.flood ? 10.0 : 1.0,
+          }
+          dispatch({ type: SENSOR_READINGS_UPDATE, payload: { pumpId, data: flattened } })
         } catch {
           // sensor-sim not port-forwarded — skip
         }

@@ -361,5 +361,95 @@ back to its origin, then provide your analysis."""
                 analysis_duration_s=duration,
             )
 
+    def answer_user_query(
+        self,
+        message: str,
+        history: list,
+        recent_findings: list,
+        recent_alerts: list,
+        metrics: dict
+    ) -> str:
+        """
+        Industrial chatbot copilot query. Answers user questions based on live system context:
+        topology, recent raw findings, orchestrator alerts, and live Prometheus metrics.
+        """
+        topology_text = self._graph.to_prompt_text()
+        
+        # Format a clean, bounded context
+        findings_clean = [
+            {
+                "timestamp": f.get("timestamp"),
+                "pod": f.get("pod"),
+                "agent": f.get("agent"),
+                "anomaly_type": f.get("anomaly_type"),
+                "severity": f.get("severity")
+            } for f in recent_findings[:15]
+        ]
+        
+        alerts_clean = [
+            {
+                "timestamp": a.get("timestamp"),
+                "root_cause_pod": a.get("root_cause_pod"),
+                "alert_type": a.get("alert_type"),
+                "confidence": a.get("confidence"),
+                "nlp_summary": a.get("nlp_summary")
+            } for a in recent_alerts[:5]
+        ]
+        
+        # Extract live values for quick reference in prompt
+        pod_metrics = {}
+        for pod, data in metrics.get("pods", {}).items():
+            if any(pod.startswith(prefix) for prefix in ["sensor-sim-", "edgemind-", "redis", "opc-ua-", "data-", "feature-", "health-", "alert-", "batch-", "mock-"]):
+                pod_metrics[pod] = {
+                    "cpu_usage_pct": round(data.get("cpu_usage", 0) * 100, 1) if data.get("cpu_usage") is not None else None,
+                    "mem_rss_mb": round(data.get("mem_rss", 0) / (1024 * 1024), 1) if data.get("mem_rss") is not None else None
+                }
+
+        context_prompt = f"""You are EdgeMind Copilot, an industrial chatbot assistant for a Kubernetes-based pump station monitor.
+The user is viewing the dashboard and asks: "{message}"
+
+Here is the current live system context:
+
+1. PIPELINE TOPOLOGY:
+{topology_text}
+
+2. DETECTED INCIDENTS & ROOT CAUSES (Alerts):
+{json.dumps(alerts_clean, indent=2)}
+
+3. RECENT RAW FINDINGS (Anomalies):
+{json.dumps(findings_clean, indent=2)}
+
+4. POD TELEMETRY SNAPSHOT:
+{json.dumps(pod_metrics, indent=2)}
+
+Please answer the user's question directly, using the live telemetry or incident context if relevant.
+Guidelines:
+- Keep your answer professional, accurate, and direct.
+- Do not make up metrics or incidents that are not shown in the context.
+- Keep the response brief, ideally under 4 sentences.
+- Speak in plain English suitable for an operations engineer.
+"""
+        messages = [
+            {"role": "system", "content": "You are a professional industrial Copilot for EdgeMind. Answer concisely based on telemetry data."},
+        ]
+        
+        # Bounded history
+        for msg in history[-6:]:
+            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+            
+        messages.append({"role": "user", "content": context_prompt})
+
+        try:
+            resp = self._client.chat.completions.create(
+                model=LLM_MODEL,
+                messages=messages,
+                temperature=0.2,
+                max_completion_tokens=400
+            )
+            return resp.choices[0].message.content or "No response from LLM."
+        except Exception as e:
+            log.error("LLM Chat query failed: %s", e)
+            return f"Error communicating with LLM: {str(e)}"
+
     def close(self):
         pass
