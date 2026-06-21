@@ -43,7 +43,16 @@ async def main():
         os.environ.get("REDIS_URL", REDIS_URL),
         decode_responses=True,
     )
-    await redis.ping()
+    for _attempt in range(10):
+        try:
+            await redis.ping()
+            break
+        except Exception as _e:
+            if _attempt == 9:
+                raise
+            _wait = min(2 ** _attempt, 30)
+            log.warning("Redis not ready (attempt %d/10), retrying in %ds: %s", _attempt + 1, _wait, _e)
+            await asyncio.sleep(_wait)
     log.info("Redis connected")
 
     try:

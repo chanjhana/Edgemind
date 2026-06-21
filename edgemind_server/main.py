@@ -396,9 +396,18 @@ async def websocket_endpoint(ws: WebSocket):
 async def startup():
     global _redis, _graph, _orchestrator
 
-    # Redis
+    # Redis — retry on startup to tolerate CoreDNS not yet ready
     _redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-    await _redis.ping()
+    for _attempt in range(10):
+        try:
+            await _redis.ping()
+            break
+        except Exception as _e:
+            if _attempt == 9:
+                raise
+            _wait = min(2 ** _attempt, 30)
+            log.warning("Redis not ready (attempt %d/10), retrying in %ds: %s", _attempt + 1, _wait, _e)
+            await asyncio.sleep(_wait)
     log.info("Redis connected")
 
     # Kubernetes
