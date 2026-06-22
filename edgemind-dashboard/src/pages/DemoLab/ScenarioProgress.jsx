@@ -1,4 +1,5 @@
 import { useAppState } from '../../core/store/AppContext.jsx'
+import { stepIsDone } from '../../core/selectors/scenarioMatch.js'
 
 function StepRow({ step, status }) {
   const color =
@@ -26,24 +27,9 @@ export default function ScenarioProgress({ scenario, running, startedAt }) {
   const startCutoff = startedAt ? new Date(startedAt).getTime() : 0
 
   const stepStatuses = scenario.steps.map(step => {
-    if (step.waitForAlert) {
-      const hit = correlatedAlerts.some(
-        a => a.timestamp && new Date(a.timestamp).getTime() > startCutoff
-      )
-      if (hit) return 'done'
-    }
-    if (step.anomalyType && step.pod) {
-      const hit = findings.some(
-        f => f.anomaly_type === step.anomalyType &&
-             f.pod === step.pod &&
-             (!startedAt || new Date(f.timestamp).getTime() >= startCutoff)
-      )
-      if (hit) return 'done'
-    }
+    if (stepIsDone(step, { findings, correlatedAlerts, startCutoff, startedAt })) return 'done'
     // Injection step: no anomalyType, no waitForAlert — mark done once running
-    if (!step.anomalyType && !step.waitForAlert) {
-      if (running) return 'done'
-    }
+    if (!step.anomalyType && !step.waitForAlert && running) return 'done'
     return 'pending'
   })
 

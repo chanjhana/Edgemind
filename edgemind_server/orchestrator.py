@@ -175,6 +175,42 @@ back to its origin, then provide your analysis."""
         import re
         return re.sub(r'-[a-z0-9]{5,12}-[a-z0-9]{5}$', '', name)
 
+    def _extract_failed_generation(self, e: Exception) -> str:
+        """Dig the Groq `failed_generation` payload out of a tool_use_failed error.
+
+        The openai SDK is inconsistent about where it stashes the parsed error
+        body, so probe every plausible location:
+          - e.body == {"error": {"failed_generation": ...}}
+          - e.body == {"failed_generation": ...}   (error dict stored directly)
+          - e.response.json()["error"]["failed_generation"]
+        """
+        def _dig(d: Any) -> str:
+            if not isinstance(d, dict):
+                return ""
+            if isinstance(d.get("failed_generation"), str):
+                return d["failed_generation"]
+            err = d.get("error")
+            if isinstance(err, dict) and isinstance(err.get("failed_generation"), str):
+                return err["failed_generation"]
+            return ""
+
+        # 1) Structured .body attribute
+        fg = _dig(getattr(e, "body", None))
+        if fg:
+            return fg
+
+        # 2) Raw HTTP response body
+        resp = getattr(e, "response", None)
+        if resp is not None:
+            try:
+                fg = _dig(resp.json())
+                if fg:
+                    return fg
+            except Exception:
+                pass
+
+        return ""
+
     def _extract_json_result(self, content: str) -> Optional[Dict]:
         import re
         match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
@@ -243,6 +279,12 @@ back to its origin, then provide your analysis."""
                 )
             except Exception as e:
                 log.error("LLM API error: %s", e)
+                # Groq tool_use_failed: model mixed tool calls + JSON in one response.
+                # The failed_generation often contains the correct JSON analysis — extract it.
+                failed_gen = self._extract_failed_generation(e)
+                if failed_gen and self._extract_json_result(failed_gen):
+                    log.info("Recovered JSON from failed_generation (%d chars)", len(failed_gen))
+                    final_content = failed_gen
                 break
 
             message = response.choices[0].message

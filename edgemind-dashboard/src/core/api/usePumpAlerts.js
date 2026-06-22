@@ -14,7 +14,8 @@ export function usePumpAlerts() {
         const res = await fetch('/alertmanager/alerts/active')
         if (!res.ok) return
         const data = await res.json()
-        dispatch({ type: PUMP_ALERTS_UPDATE, payload: Array.isArray(data) ? data : data.alerts || [] })
+        const alerts = Array.isArray(data) ? data : data.alerts || []
+        dispatch({ type: PUMP_ALERTS_UPDATE, payload: alerts })
       } catch (e) {
         // alert-manager may not be port-forwarded; silently skip
       }

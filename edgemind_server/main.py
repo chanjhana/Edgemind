@@ -70,6 +70,7 @@ HEARTBEAT_BROADCAST_INTERVAL = int(os.environ.get("HEARTBEAT_BROADCAST_INTERVAL"
 _recent_alerts: deque = deque(maxlen=50)
 _recent_findings: deque = deque(maxlen=200)
 _ws_clients: Set[WebSocket] = set()
+_last_metrics: Optional[Dict[str, Any]] = None
 
 app = FastAPI(title="EdgeMind Server", version="1.0.0")
 app.add_middleware(
@@ -262,11 +263,13 @@ async def _finding_relay_loop() -> None:
 
 async def _metric_broadcast_loop() -> None:
     """Scrape Prometheus every METRIC_BROADCAST_INTERVAL s and broadcast metric_update."""
+    global _last_metrics
     loop = asyncio.get_running_loop()
     while True:
         await asyncio.sleep(METRIC_BROADCAST_INTERVAL)
         try:
             snapshot = await loop.run_in_executor(_executor, _scrape_metrics)
+            _last_metrics = snapshot
             await _broadcast_to_ws({"type": "metric_update", "data": snapshot})
         except asyncio.CancelledError:
             raise
@@ -353,6 +356,7 @@ async def clear_alerts():
     _recent_alerts.clear()
     if _correlation_filter:
         _correlation_filter.reset_cooldown()
+    await _broadcast_to_ws({"type": "alerts_cleared"})
     return JSONResponse({"cleared": True})
 
 class ChatRequest(BaseModel):
@@ -397,6 +401,7 @@ async def websocket_endpoint(ws: WebSocket):
                 "recent_findings": list(_recent_findings)[:20],
                 "recent_alerts": [_normalize_alert(a) for a in list(_recent_alerts)[:5]],
                 "dependency_graph": _graph.to_json() if _graph else {},
+                "metrics": _last_metrics,
             }
         }, default=str))
         # Emit current heartbeats immediately so dashboard doesn't wait 30s

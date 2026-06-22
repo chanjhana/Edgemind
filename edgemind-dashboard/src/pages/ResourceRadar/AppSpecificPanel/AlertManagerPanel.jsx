@@ -36,7 +36,7 @@ function AlertCard({ alert }) {
   const borderColor = sev === 'critical' ? 'var(--color-danger)' : sev === 'warning' ? 'var(--color-warning)' : 'var(--color-border-secondary)'
 
   return (
-    <div style={{ border: `1px solid ${borderColor}`, borderRadius: 6, padding: '8px 10px', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-card)', boxShadow: '0 1px 3px var(--color-shadow)' }}>
+    <div style={{ border: `1px solid ${borderColor}`, borderRadius: 6, padding: '8px 10px', background: 'var(--color-bg-card)', boxShadow: '0 1px 3px var(--color-shadow)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
         <SeverityBadge severity={sev} />
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-primary)', fontFamily: 'monospace' }}>{pumpLabel}</span>

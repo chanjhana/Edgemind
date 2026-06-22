@@ -1,15 +1,28 @@
-import { useState } from 'react'
 import { useDispatch, useAppState } from '../../core/store/AppContext.jsx'
 import PanelHeader from '../../components/ui/PanelHeader.jsx'
 import { useFaultInjection } from '../../core/api/useFaultInjection.js'
 import { SCENARIOS } from '../../core/constants/faultModes.js'
 import ScenarioCard from './ScenarioCard.jsx'
 
+async function _setLeak(enabled) {
+  try {
+    await fetch('/featureextractor/leak', { method: enabled ? 'POST' : 'DELETE' })
+  } catch {
+    // feature-extractor not port-forwarded; skip
+  }
+}
+
+async function _setFill(enabled) {
+  try {
+    await fetch('/alertmanager/fill', { method: enabled ? 'POST' : 'DELETE' })
+  } catch {
+    // alert-manager not reachable; skip
+  }
+}
+
 export default function ScenarioLauncher() {
   const { demoLab } = useAppState()
   const dispatch = useDispatch()
-  const [runningScenario, setRunningScenario] = useState(null)
-  const [completedScenario, setCompletedScenario] = useState(null)
 
   const pump1 = useFaultInjection('pump1')
   const pump2 = useFaultInjection('pump2')
@@ -19,27 +32,44 @@ export default function ScenarioLauncher() {
   const anyActiveFault = Object.values(demoLab.activeFaults || {}).some(Boolean)
 
   async function handleLaunch(scenario) {
-    setRunningScenario(scenario.id)
-    setCompletedScenario(null)
+    // Inject physical fault if this scenario targets a pump
     if (scenario.faultMode && scenario.targetPump) {
       const inj = injectors[scenario.targetPump]
       if (inj) await inj.inject(scenario.faultMode)
     }
-    dispatch({ type: 'SET_DEMO_SCENARIO', payload: { activeScenarioId: scenario.id, scenarioStartedAt: new Date().toISOString() } })
+    // Enable memory leak for scenario 2
+    if (scenario.id === 2) {
+      await _setLeak(true)
+    }
+    // Start PVC fill for scenario 3 (self-cleaning on the backend)
+    if (scenario.id === 3) {
+      await _setFill(true)
+    }
+    dispatch({ type: 'SET_DEMO_SCENARIO', payload: {
+      activeScenarioId: scenario.id,
+      completedScenarioId: null,
+      scenarioStartedAt: new Date().toISOString(),
+    }})
   }
 
   async function handleClear(scenario) {
+    // Clear physical fault
     if (scenario.targetPump) {
       const inj = injectors[scenario.targetPump]
       if (inj) await inj.clear()
     }
-    if (runningScenario === scenario.id) {
-      setCompletedScenario(scenario.id)
-      setRunningScenario(null)
-    } else {
-      setCompletedScenario(null)
+    // Disable memory leak
+    if (scenario.id === 2) {
+      await _setLeak(false)
     }
-    dispatch({ type: 'SET_DEMO_SCENARIO', payload: { activeScenarioId: null } })
+    // Stop PVC fill + clean up
+    if (scenario.id === 3) {
+      await _setFill(false)
+    }
+    dispatch({ type: 'SET_DEMO_SCENARIO', payload: {
+      activeScenarioId: null,
+      completedScenarioId: scenario.id,
+    }})
   }
 
   return (
@@ -50,9 +80,9 @@ export default function ScenarioLauncher() {
           <ScenarioCard
             key={scenario.id}
             scenario={scenario}
-            running={runningScenario === scenario.id}
-            completed={completedScenario === scenario.id}
-            disabled={anyActiveFault && runningScenario !== scenario.id}
+            running={demoLab.activeScenarioId === scenario.id}
+            completed={demoLab.completedScenarioId === scenario.id}
+            disabled={anyActiveFault && demoLab.activeScenarioId !== scenario.id}
             onLaunch={() => handleLaunch(scenario)}
             onClear={() => handleClear(scenario)}
           />

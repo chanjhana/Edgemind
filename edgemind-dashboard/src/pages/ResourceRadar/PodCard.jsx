@@ -51,9 +51,9 @@ export default function PodCard({ podName, onClick }) {
     : 'var(--color-border-secondary)'
 
   // Special state badges
-  const isFaultTarget = podName === 'sensor-sim-2'
   const pumpId = POD_TO_PUMP[podName]
   const sensorData = pumpId ? (sensorReadings[pumpId] || {}) : {}
+  const isFaultTarget = !!sensorData.active_fault
   const emissionHz = sensorData.emission_hz ?? sensorData.readings?.emission_hz
   const isFlood = !!pumpId && emissionHz != null && emissionHz > 2
 

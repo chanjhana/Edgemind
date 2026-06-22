@@ -175,6 +175,42 @@ async def _post_alert(client: httpx.AsyncClient, result) -> None:
         log.warning("alert-manager POST failed pump=%s: %s", result.pump_id, exc)
 
 
+async def _post_live_score(client: httpx.AsyncClient, result) -> None:
+    """Always POST the current score to alert-manager /scores — every cycle."""
+    payload = {
+        "pump_id": result.pump_id,
+        "state": result.state,
+        "overall_health": result.overall_health,
+        "vibration_score": result.vibration_score,
+        "thermal_score": result.thermal_score,
+        "bearing_health": result.overall_health,
+        "timestamp": result.timestamp.isoformat(),
+    }
+    url = f"{_ALERT_MANAGER_URL}/scores"
+    try:
+        await client.post(url, json=payload, timeout=5.0)
+    except Exception as exc:
+        log.debug("live score POST failed pump=%s: %s", result.pump_id, exc)
+
+
+async def _post_resolve(client: httpx.AsyncClient, result) -> None:
+    """POST resolution to alert-manager when pump transitions back to HEALTHY."""
+    payload = {
+        "pump_id": result.pump_id,
+        "overall_health": result.overall_health,
+        "timestamp": result.timestamp.isoformat(),
+    }
+    url = f"{_ALERT_MANAGER_URL}/alerts/resolve"
+    try:
+        resp = await client.post(url, json=payload, timeout=5.0)
+        if resp.status_code == 200:
+            log.info("resolution sent pump=%s overall_health=%.1f", result.pump_id, result.overall_health)
+        else:
+            log.warning("alert-manager resolve returned %d for pump=%s", resp.status_code, result.pump_id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("alert-manager resolve POST failed pump=%s: %s", result.pump_id, exc)
+
+
 async def _post_trigger(client: httpx.AsyncClient, result) -> None:
     """POST export trigger to batch-sync. Fire-and-forget on error."""
     payload = {
@@ -241,10 +277,13 @@ async def run_cycle(
         points.append(_make_health_point(result))
 
         # --- Fire HTTP triggers if action requires it ----------------------
+        trigger_tasks.append(_post_live_score(http_client, result))
         if result.action in (ACTION_TRIGGER_BOTH, ACTION_TRIGGER_ALERT):
             trigger_tasks.append(_post_alert(http_client, result))
         if result.action in (ACTION_TRIGGER_BOTH, ACTION_TRIGGER_EXPORT):
             trigger_tasks.append(_post_trigger(http_client, result))
+        if result.is_recovery:
+            trigger_tasks.append(_post_resolve(http_client, result))
 
     # Write all health points in one batch.
     if points:
@@ -262,6 +301,30 @@ async def run_cycle(
 # Entry point
 # ---------------------------------------------------------------------------
 
+async def _bootstrap_pump_states(
+    http_client: httpx.AsyncClient,
+    pump_states: Dict[str, PumpState],
+) -> None:
+    """
+    On startup, fetch alertmanager active alerts and set last_state accordingly.
+    Without this, PumpState always starts with last_state=HEALTHY, so is_recovery
+    never fires after a restart even if alertmanager holds DATA_STALE entries.
+    """
+    try:
+        resp = await http_client.get(f"{_ALERT_MANAGER_URL}/alerts/active", timeout=5.0)
+        if resp.status_code != 200:
+            return
+        alerts = resp.json().get("alerts", [])
+        for alert in alerts:
+            pump_id = alert.get("pump_id")
+            state = alert.get("state", STATE_HEALTHY)
+            if pump_id in pump_states and state != STATE_HEALTHY:
+                pump_states[pump_id].last_state = state
+                log.info("bootstrap pump=%s last_state=%s from alertmanager", pump_id, state)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("could not bootstrap pump states from alertmanager: %s", exc)
+
+
 async def main() -> None:
     log.info(
         "starting health-scorer: influx=%s cycle=%ss alert-manager=%s batch-sync=%s",
@@ -274,6 +337,7 @@ async def main() -> None:
         query_api = client.query_api()
         write_api = client.write_api()
         async with httpx.AsyncClient() as http_client:
+            await _bootstrap_pump_states(http_client, pump_states)
             while True:
                 try:
                     await run_cycle(query_api, write_api, http_client, pump_states)

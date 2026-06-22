@@ -3,6 +3,7 @@ import { useAppState } from '../../core/store/AppContext.jsx'
 import AgentTag from '../../components/ui/AgentTag.jsx'
 import MiniProgressBar from '../../components/ui/MiniProgressBar.jsx'
 import ScenarioProgress from './ScenarioProgress.jsx'
+import { stepIsDone } from '../../core/selectors/scenarioMatch.js'
 
 export default function ScenarioCard({ scenario, running, completed, onLaunch, onClear, disabled }) {
   const { findings, correlatedAlerts, demoLab } = useAppState()
@@ -13,16 +14,10 @@ export default function ScenarioCard({ scenario, running, completed, onLaunch, o
   // Count completed steps to drive the progress bar
   const doneCount = useMemo(() => {
     return scenario.steps.filter(step => {
-      if (step.waitForAlert) {
-        return correlatedAlerts.some(a => a.timestamp && new Date(a.timestamp).getTime() > startCutoff)
+      if (step.anomalyType || step.waitForAlert) {
+        return stepIsDone(step, { findings, correlatedAlerts, startCutoff, startedAt })
       }
-      if (step.anomalyType && step.pod) {
-        return findings.some(f =>
-          f.anomaly_type === step.anomalyType &&
-          f.pod === step.pod &&
-          (!startedAt || new Date(f.timestamp).getTime() >= startCutoff)
-        )
-      }
+      // Injection step (no anomalyType / waitForAlert): done while running/completed
       return running || completed
     }).length
   }, [scenario.steps, findings, correlatedAlerts, running, completed, startCutoff, startedAt])

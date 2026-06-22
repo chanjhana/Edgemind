@@ -67,7 +67,7 @@ export default function Pump3DScene({ readings, activeFault }) {
         <group>
           {/* Top */}
           <FloatingCard position={[0, 1.8, 0]} title="Vibration Axial" value={readings.vibration_axial} unit="mm/s">
-             <div style={{ marginTop: 2 }}><IsoZoneBadge mmPerS={readings.vibration_axial} /></div>
+             <div style={{ marginTop: 2 }}><IsoZoneBadge mmPerS={Math.max(readings.vibration_axial ?? 0, readings.vibration_radial ?? 0)} /></div>
           </FloatingCard>
           
           {/* Left */}

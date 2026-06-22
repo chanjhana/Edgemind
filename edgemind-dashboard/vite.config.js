@@ -42,6 +42,10 @@ export default defineConfig({
         target: `http://${BACKEND_HOST}:8006`,
         rewrite: path => path.replace(/^\/alertmanager/, ''),
       },
+      '/featureextractor': {
+        target: `http://${BACKEND_HOST}:8004`,
+        rewrite: path => path.replace(/^\/featureextractor/, ''),
+      },
     },
   },
 })

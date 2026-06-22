@@ -25,17 +25,20 @@ function Reading({ label, value, unit, warn, crit, flip = false, digits = 1 }) {
 
 export default function PumpTwinCard({ title, sensorName, readings = {}, alert, activeFault }) {
   const overall = alert?.overall_health ?? null
-  const stateLabel = overall == null ? (activeFault ? 'WARNING' : 'NOMINAL')
+  const stateLabel = overall == null ? (activeFault ? 'WARNING' : 'HEALTHY')
     : overall < 50 ? 'CRITICAL'
     : overall < 75 ? 'WARNING'
     : 'HEALTHY'
 
   const stateColor = stateLabel === 'CRITICAL' ? 'var(--color-danger)'
     : stateLabel === 'WARNING' ? 'var(--color-warning)'
-    : stateLabel === 'NOMINAL' ? 'var(--color-text-tertiary)'
     : 'var(--color-success)'
 
-  const vib = readings.vibration_radial
+  const vibAxial = readings.vibration_axial
+  const vibRadial = readings.vibration_radial
+  const vib = (vibAxial != null && vibRadial != null)
+    ? Math.max(vibAxial, vibRadial)
+    : (vibAxial ?? vibRadial)
 
   return (
     <div style={{

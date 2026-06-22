@@ -2,7 +2,9 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useWebSocket } from '../../core/ws/useWebSocket.js'
 import { useGraph } from '../../core/api/useGraph.js'
 import { usePumpAlerts } from '../../core/api/usePumpAlerts.js'
+import { useLiveScores } from '../../core/api/useLiveScores.js'
 import { useSensorReadings } from '../../core/api/useSensorReadings.js'
+import { useMetricsPoll } from '../../core/api/useMetricsPoll.js'
 import GlobalHeader from './GlobalHeader.jsx'
 import CopilotChat from '../ui/CopilotChat.jsx'
 
@@ -10,7 +12,9 @@ function DataHooks() {
   useWebSocket()
   useGraph()
   usePumpAlerts()
+  useLiveScores()
   useSensorReadings()
+  useMetricsPoll()
   return null
 }
 

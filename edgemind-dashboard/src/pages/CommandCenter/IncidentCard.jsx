@@ -1,5 +1,8 @@
-﻿import { useNavigate } from 'react-router-dom'
+﻿import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppState } from '../../core/store/AppContext.jsx'
+import { latestActiveCorrelation } from '../../core/selectors/correlations.js'
+import { useNow } from '../../core/hooks/useNow.js'
 import ConfidenceTier from '../../components/ui/ConfidenceTier.jsx'
 import AgentTag from '../../components/ui/AgentTag.jsx'
 import WarmingUpBanner from '../../components/ui/WarmingUpBanner.jsx'
@@ -72,7 +75,12 @@ function TwoDomainContrast({ alert }) {
 
 export default function IncidentCard() {
   const navigate = useNavigate()
-  const { activeIncident, agentsReady, llmAvailable } = useAppState()
+  const { correlatedAlerts, findings, agentsReady, llmAvailable } = useAppState()
+  const now = useNow(5000)
+  const activeIncident = useMemo(
+    () => latestActiveCorrelation(correlatedAlerts, findings, now),
+    [correlatedAlerts, findings, now]
+  )
 
   if (!agentsReady) return (
     <Panel>

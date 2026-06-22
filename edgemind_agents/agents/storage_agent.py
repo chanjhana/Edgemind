@@ -24,6 +24,9 @@ from edgemind_agents.models import MetricSnapshot
 
 log = logging.getLogger(__name__)
 
+# Export pods do scheduled write bursts — suppress write_burst false positives.
+_WRITE_BURST_EXCLUDE = {"batch-sync", "mock-upload"}
+
 _MB = 1024 * 1024
 
 
@@ -154,7 +157,7 @@ class StorageAgent(BaseAgent):
             else:
                 state.sustained_burst_cycles = 0
 
-            if state.sustained_burst_cycles >= STORAGE_SUSTAINED_BURST_CYCLES:
+            if state.sustained_burst_cycles >= STORAGE_SUSTAINED_BURST_CYCLES and pod.container not in _WRITE_BURST_EXCLUDE:
                 await self.publish_finding({
                     "anomaly_type": WRITE_BURST,
                     "severity": SEV_WARNING,

@@ -20,13 +20,14 @@ export default function AgentGrid() {
   const byAgent = useMemo(() => {
     const map = {}
     AGENTS.forEach(a => { map[a.id] = { latest: null, activeCount: 0 } })
-    // findings are newest-first, but sort defensively by timestamp.
     const sorted = [...findings].sort((x, y) => new Date(y.timestamp) - new Date(x.timestamp))
+    const cutoff = Date.now() - 10 * 60 * 1000
     sorted.forEach(f => {
       const slot = map[f.agent]
       if (!slot) return
       if (!slot.latest) slot.latest = f
-      if (f.severity === 'critical' || f.severity === 'warning') slot.activeCount++
+      const recent = f.timestamp && new Date(f.timestamp).getTime() >= cutoff
+      if (recent && (f.severity === 'critical' || f.severity === 'warning')) slot.activeCount++
     })
     return map
   }, [findings])

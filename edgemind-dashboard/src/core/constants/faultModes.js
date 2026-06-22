@@ -98,8 +98,8 @@ export const SCENARIOS = [
     expectedAgents: ['storage'],
     expectedDuration: '8–15 min',
     steps: [
-      { id: 'pvc_fill',  label: 'pvc_fill detected on export-data PVC',  anomalyType: 'pvc_fill',     pod: 'alert-manager' },
-      { id: 'io_sat',    label: 'io_saturation on data-historian',        anomalyType: 'io_saturation',pod: 'data-historian' },
+      { id: 'pvc_fill',  label: 'pvc_fill detected on export-data PVC',  anomalyType: 'pvc_fill',     pod: 'pvc' },
+      { id: 'write',     label: 'write_burst on alert-manager',           anomalyType: 'write_burst',  pod: 'alert-manager' },
       { id: 'corr',      label: 'Correlated alert from orchestrator',      anomalyType: null,           pod: null, waitForAlert: true },
     ],
   },

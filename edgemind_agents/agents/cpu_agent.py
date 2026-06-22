@@ -20,6 +20,10 @@ from edgemind_agents.models import MetricSnapshot, PodMetrics
 
 log = logging.getLogger(__name__)
 
+# Export/upload pods do scheduled batch work — their CPU bursts are expected,
+# not anomalies. Suppress cpu_spike for these containers.
+_CPU_SPIKE_EXCLUDE = {"batch-sync", "mock-upload"}
+
 
 class _PodCPUState:
     def __init__(self):
@@ -59,6 +63,9 @@ class CPUAgent(BaseAgent):
 
             if state.suppress_cycles_remaining > 0:
                 state.suppress_cycles_remaining -= 1
+                continue
+
+            if pod.container in _CPU_SPIKE_EXCLUDE:
                 continue
 
             state.window.append(pod.cpu_usage_cores)

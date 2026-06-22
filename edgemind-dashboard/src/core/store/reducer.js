@@ -33,6 +33,8 @@ export const initialState = {
 
   pumpAlerts: [],
 
+  liveScores: {},
+
   podEvents: [],
 
   forecasts: {
@@ -53,6 +55,7 @@ export const initialState = {
 
   demoLab: {
     activeScenarioId: null,
+    completedScenarioId: null,
     scenarioStartedAt: null,
     scenarioSteps: [],
     activeFaults: { pump1: null, pump2: null, pump3: null },
@@ -127,7 +130,8 @@ function derivePvc2Ttf(pvcs, prevForecasts) {
 }
 
 function deriveFeatureExtractorOom(metrics, prevForecasts) {
-  const fe = metrics['feature-extractor']
+  const feName = Object.keys(metrics).find(k => k === 'feature-extractor' || k.startsWith('feature-extractor-'))
+  const fe = feName ? metrics[feName] : null
   if (!fe) return prevForecasts
 
   const rssArr = (fe.mem_rss || []).filter(v => v != null)
@@ -173,8 +177,15 @@ export default function reducer(state, action) {
       return { ...state, ws: { ...state.ws, ...action.payload } }
 
     case A.INITIAL_STATE: {
-      const { recent_findings = [], recent_alerts = [], dependency_graph = {} } = action.payload
+      const { recent_findings = [], recent_alerts = [], dependency_graph = {}, metrics: metricsSnap } = action.payload
       const alerts = recent_alerts.slice(0, MAX_ALERTS)
+      let metrics = { ...state.metrics }
+      if (metricsSnap?.pods) {
+        Object.entries(metricsSnap.pods).forEach(([pod, snap]) => {
+          if (snap) metrics[pod] = updateMetricsPod(metrics, pod, snap)
+        })
+      }
+      const pvcs = metricsSnap?.pvcs ? derivePvcState(state.pvcs, metricsSnap.pvcs) : state.pvcs
       return {
         ...state,
         findings: recent_findings.slice(0, MAX_FINDINGS),
@@ -182,6 +193,8 @@ export default function reducer(state, action) {
         activeIncident: alerts.find(a => !a.resolved) || alerts[0] || null,
         graph: dependency_graph,
         graphLastRebuild: dependency_graph.timestamp || null,
+        metrics,
+        pvcs,
       }
     }
 
@@ -232,6 +245,12 @@ export default function reducer(state, action) {
     case A.PUMP_ALERTS_UPDATE:
       return { ...state, pumpAlerts: action.payload }
 
+    case A.LIVE_SCORES_UPDATE: {
+      const map = {}
+      action.payload.forEach(s => { if (s.pump_id) map[s.pump_id] = s })
+      return { ...state, liveScores: map }
+    }
+
     case A.SENSOR_READINGS_UPDATE: {
       const { pumpId, data } = action.payload
       return { ...state, sensorReadings: { ...state.sensorReadings, [pumpId]: data } }
@@ -271,6 +290,9 @@ export default function reducer(state, action) {
         },
       }
     }
+
+    case A.ALERTS_CLEARED:
+      return { ...state, correlatedAlerts: [], activeIncident: null }
 
     default:
       return state

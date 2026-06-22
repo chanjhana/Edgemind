@@ -1,9 +1,16 @@
-﻿import { useState } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppState } from '../../core/store/AppContext.jsx'
+import { latestActiveCorrelation } from '../../core/selectors/correlations.js'
+import { useNow } from '../../core/hooks/useNow.js'
 
 export default function IncidentOverlay() {
-  const { activeIncident } = useAppState()
+  const { correlatedAlerts, findings } = useAppState()
+  const now = useNow(5000)
+  const activeIncident = useMemo(
+    () => latestActiveCorrelation(correlatedAlerts, findings, now),
+    [correlatedAlerts, findings, now]
+  )
   const navigate = useNavigate()
   const [dismissed, setDismissed] = useState(false)
 

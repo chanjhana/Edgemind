@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import { LAYERS, MONITORING_LAYER } from '../../core/constants/topology.js'
+import { countActiveCorrelations, latestActiveCorrelation } from '../../core/selectors/correlations.js'
+import { useNow } from '../../core/hooks/useNow.js'
 
 const ALL_PODS = [...LAYERS.flat(), ...MONITORING_LAYER]
 
@@ -51,11 +53,17 @@ function VitalCard({ label, value, sub, accent, borderAccent }) {
 }
 
 export default function VitalCards() {
-  const { correlatedAlerts, findings, pvcs, activeIncident } = useAppState()
+  const { correlatedAlerts, findings, pvcs } = useAppState()
+  const now = useNow(5000)
 
   const activeAlertCount = useMemo(
-    () => correlatedAlerts.filter(a => !a.resolved).length,
-    [correlatedAlerts]
+    () => countActiveCorrelations(correlatedAlerts, findings, now),
+    [correlatedAlerts, findings, now]
+  )
+
+  const activeIncident = useMemo(
+    () => latestActiveCorrelation(correlatedAlerts, findings, now),
+    [correlatedAlerts, findings, now]
   )
 
   const { healthy, total } = useMemo(() => {

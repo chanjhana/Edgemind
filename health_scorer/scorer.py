@@ -101,6 +101,7 @@ class ScoringResult:
     consecutive_warning_cycles: int
     action: str                   # none / trigger_alert / trigger_export / trigger_both
     trigger: str                  # trigger type label for the alert payload
+    is_recovery: bool = False     # True when this cycle transitions non-HEALTHY → HEALTHY
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def is_anomalous(self) -> bool:
@@ -200,6 +201,7 @@ def score_pump(
     trigger = _determine_trigger(state, features)
 
     # Update the warning counter.
+    prev_state = pump_state.last_state
     if state == STATE_WARNING:
         pump_state.increment_warning()
     elif state == STATE_CRITICAL:
@@ -211,6 +213,7 @@ def score_pump(
     will_trigger = pump_state.should_trigger(state)
 
     # Determine action label.
+    is_recovery = state == STATE_HEALTHY and prev_state != STATE_HEALTHY
     if will_trigger:
         action = ACTION_TRIGGER_BOTH
     else:
@@ -225,4 +228,5 @@ def score_pump(
         consecutive_warning_cycles=pump_state.consecutive_warning_cycles,
         action=action,
         trigger=trigger,
+        is_recovery=is_recovery,
     )

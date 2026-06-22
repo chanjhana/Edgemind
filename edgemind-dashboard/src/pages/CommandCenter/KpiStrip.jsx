@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import { healthCounts, worstPod } from '../../core/selectors/podHealth.js'
+import { countActiveCorrelations, latestActiveCorrelation } from '../../core/selectors/correlations.js'
+import { useNow } from '../../core/hooks/useNow.js'
 
 function fmtMinutes(min) {
   if (min == null) return '—'
@@ -48,7 +50,8 @@ function KpiCard({ label, value, sub, accent }) {
 }
 
 export default function KpiStrip() {
-  const { findings, correlatedAlerts, activeIncident, forecasts } = useAppState()
+  const { findings, correlatedAlerts, forecasts } = useAppState()
+  const now = useNow(5000)
 
   const { healthy, warning, critical, total } = useMemo(
     () => healthCounts(findings), [findings]
@@ -56,8 +59,14 @@ export default function KpiStrip() {
   const topCritical = useMemo(() => worstPod(findings), [findings])
 
   const activeAlertCount = useMemo(
-    () => correlatedAlerts.filter(a => !a.resolved).length,
-    [correlatedAlerts]
+    () => countActiveCorrelations(correlatedAlerts, findings, now),
+    [correlatedAlerts, findings, now]
+  )
+
+  // AI Confidence / incident type follow the live incident, not stale history.
+  const activeIncident = useMemo(
+    () => latestActiveCorrelation(correlatedAlerts, findings, now),
+    [correlatedAlerts, findings, now]
   )
 
   const confidence = activeIncident?.confidence

@@ -30,7 +30,7 @@ function CorrelatedAlertCard({ alert }) {
     : (alert.causal_chain || null)
 
   return (
-    <div style={{ border: `1px solid ${borderColor}`, borderRadius: 5, padding: '8px 10px', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-card)', boxShadow: '0 1px 3px var(--color-shadow)', marginBottom: 8 }}>
+    <div style={{ border: `1px solid ${borderColor}`, borderRadius: 5, padding: '8px 10px', background: 'var(--color-bg-card)', boxShadow: '0 1px 3px var(--color-shadow)', marginBottom: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)' }}>{alert.alert_type || 'correlated_alert'}</span>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

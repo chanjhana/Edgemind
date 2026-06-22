@@ -55,7 +55,10 @@ export function useWebSocket() {
 
     return () => {
       stopped.current = true
-      if (wsRef.current) wsRef.current.close()
+      if (wsRef.current) {
+        wsRef.current.onclose = null
+        wsRef.current.close()
+      }
       dispatch({ type: WS_STATUS, payload: { connected: false, status: 'lost' } })
     }
   }, [dispatch])

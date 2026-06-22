@@ -34,6 +34,11 @@ _MB = 1024 * 1024
 # Only surface K8s lifecycle events from namespaces we actually monitor.
 _WATCHED_EVENT_NAMESPACES = {"pump-station", "monitoring"}
 
+# Pods whose network traffic is inherently bursty (periodic exports, uploads).
+# Flagging these as network_flood is a false positive — they are not data-ingestion
+# pipeline pods and should not be included in sensor-flood detection.
+_NETWORK_FLOOD_EXCLUDE = {"batch-sync", "mock-upload"}
+
 # Max age of a K8s event we'll act on. Events are retained in etcd (~1h) and a
 # poll re-reads them every cycle, so without this guard a single pod restart's
 # FailedMount would re-fire for an hour and pollute every correlation bundle.
@@ -123,7 +128,10 @@ class NetworkLogAgent(BaseAgent):
             tx_p75 = np.percentile(tx_arr[:-1], 75) if len(tx_arr) > 1 else 0.0
             rx_p75 = np.percentile(rx_arr[:-1], 75) if len(rx_arr) > 1 else 0.0
 
-            # TX flood
+            # TX flood (skip export/upload pods — their burst traffic is expected)
+            if pod.container in _NETWORK_FLOOD_EXCLUDE:
+                continue
+
             if tx_p75 > 0 and pod.net_tx_bytes_per_sec > tx_p75 * NET_FLOOD_MULTIPLIER:
                 state.sustained_flood_cycles += 1
                 state.last_tx_spike_ts = now

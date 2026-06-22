@@ -11,7 +11,7 @@ Environment:
   INFLUX_ORG      edgemind
   INFLUX_BUCKET   pump_station   (default from contract)
   CYCLE_S         30
-  WINDOW          5m             (Flux duration literal)
+  WINDOW          5m
   LEAK_MODE       false          (true → intentional memory leak for Scenario 2)
   LOG_LEVEL       INFO
 """
@@ -25,6 +25,9 @@ import sys
 from typing import Dict, List
 
 import numpy as np
+import uvicorn
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from influxdb_client import Point
 from influxdb_client.client.influxdb_client_async import InfluxDBClientAsync
 
@@ -57,11 +60,40 @@ INFLUX_ORG = os.environ.get("INFLUX_ORG", "edgemind")
 BUCKET = os.environ.get("INFLUX_BUCKET", INFLUX_BUCKET)
 CYCLE_S = float(os.environ.get("CYCLE_S", "30"))
 WINDOW = os.environ.get("WINDOW", "5m")
-LEAK_MODE = os.environ.get("LEAK_MODE", "false").lower() == "true"
+
+# Runtime-mutable leak flag — toggled via POST/DELETE /leak without pod restart.
+_LEAK_ACTIVE: bool = os.environ.get("LEAK_MODE", "false").lower() == "true"
 
 # Module-level sink for the intentional leak (Scenario 2). Never released.
 _LEAK_SINK: List[np.ndarray] = []
 
+# ── HTTP control server ───────────────────────────────────────────────────────
+
+http_app = FastAPI(title="feature-extractor", version="1.0.0")
+
+
+@http_app.post("/leak")
+async def enable_leak() -> JSONResponse:
+    global _LEAK_ACTIVE
+    _LEAK_ACTIVE = True
+    log.info("LEAK_MODE enabled via API")
+    return JSONResponse({"ok": True, "leak": True})
+
+
+@http_app.delete("/leak")
+async def disable_leak() -> JSONResponse:
+    global _LEAK_ACTIVE
+    _LEAK_ACTIVE = False
+    log.info("LEAK_MODE disabled via API")
+    return JSONResponse({"ok": True, "leak": False})
+
+
+@http_app.get("/health")
+async def health() -> JSONResponse:
+    return JSONResponse({"ok": True, "leak": _LEAK_ACTIVE})
+
+
+# ── InfluxDB helpers ──────────────────────────────────────────────────────────
 
 def _flux_query(pump_id: str) -> str:
     return f'''
@@ -84,7 +116,6 @@ async def _query_window(query_api, pump_id: str):
     for table in tables:
         for rec in table.records:
             vals = rec.values
-            # require all 5 fields present in the pivoted row
             if not all(p in vals for p in cols):
                 continue
             times_s.append(rec.get_time().timestamp())
@@ -112,8 +143,7 @@ async def run_cycle(query_api, write_api) -> None:
             cols[PARAM_TEMPERATURE], cols[PARAM_RPM],
         )
 
-        if LEAK_MODE:
-            # Allocate and retain a buffer sized to the window (the leak).
+        if _LEAK_ACTIVE:
             _LEAK_SINK.append(np.ones(len(times_s) * 64, dtype=np.float64))
 
         p = Point(M_FEATURES).tag(TAG_PUMP_ID, pump_id)
@@ -136,15 +166,21 @@ async def run_cycle(query_api, write_api) -> None:
             log.error("InfluxDB write failed: %s", exc)
 
 
-async def main() -> None:
+async def _main_loop() -> None:
     log.info("starting feature-extractor: influx=%s cycle=%ss window=%s leak=%s",
-             INFLUX_URL, CYCLE_S, WINDOW, LEAK_MODE)
+             INFLUX_URL, CYCLE_S, WINDOW, _LEAK_ACTIVE)
     async with InfluxDBClientAsync(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG) as client:
         query_api = client.query_api()
         write_api = client.write_api()
         while True:
             await run_cycle(query_api, write_api)
             await asyncio.sleep(CYCLE_S)
+
+
+async def main() -> None:
+    config = uvicorn.Config(http_app, host="0.0.0.0", port=8080, log_level="warning")
+    server = uvicorn.Server(config)
+    await asyncio.gather(server.serve(), _main_loop())
 
 
 if __name__ == "__main__":

@@ -10,7 +10,9 @@ function PumpBearingRow({ pump, alertsByPump, sensorReadings }) {
   const alert = alertsByPump[pump]
   const bearingHealth = alert?.bearing_health ?? null
   const readings = sensorReadings[pump] || {}
-  const vib = readings.vibration_axial ?? readings.vibration_radial ?? null
+  const vib = (readings.vibration_axial != null || readings.vibration_radial != null)
+    ? Math.max(readings.vibration_axial ?? 0, readings.vibration_radial ?? 0)
+    : null
 
   const color = bearingHealth == null ? 'var(--color-text-tertiary)'
     : bearingHealth >= 75 ? 'var(--color-success)'
@@ -22,7 +24,7 @@ function PumpBearingRow({ pump, alertsByPump, sensorReadings }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 5 }}>
         <span style={{ width: 52, color: 'var(--color-text-tertiary)', fontFamily: 'monospace', flexShrink: 0 }}>{pump}</span>
         <span style={{ flex: 1, fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)', fontSize: 11 }}>
-          {vib != null ? `${Number(vib).toFixed(2)} mm/s axial` : '— no sensor'}
+          {vib != null ? `${Number(vib).toFixed(2)} mm/s` : '— no sensor'}
         </span>
         {vib != null && <IsoZoneBadge mmPerS={vib} />}
         {bearingHealth != null && (

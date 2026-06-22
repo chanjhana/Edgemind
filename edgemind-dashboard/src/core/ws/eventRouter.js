@@ -18,6 +18,9 @@ export function routeEvent(event, dispatch) {
     case 'agent_heartbeat':
       dispatch({ type: A.AGENT_HEARTBEAT, payload: data })
       break
+    case 'alerts_cleared':
+      dispatch({ type: A.ALERTS_CLEARED })
+      break
     default:
       if (import.meta.env.DEV) {
         console.debug('[WS] unhandled event:', type, data)

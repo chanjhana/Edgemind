@@ -27,6 +27,12 @@ _MB = 1024 * 1024
 _GB = 1024 * _MB
 _SCRAPES_PER_MIN = 60.0 / COLLECT_INTERVAL_S
 
+# Database/TSDB pods accumulate data by design — their RSS grows monotonically
+# from write buffering, not from leaks.  Suppress memory_leak regression alerts
+# for these containers.  pre_oom is NOT suppressed: if they genuinely approach
+# their limit that is still an actionable signal.
+_MEMORY_LEAK_EXCLUDE = {"influxdb2", "batch-sync"}  # influxdb2: TSDB write buffering; batch-sync: scheduled export bursts
+
 
 class _PodMemState:
     def __init__(self):
@@ -173,8 +179,8 @@ class MemoryAgent(BaseAgent):
             r_squared = r_value ** 2
             slope_mb_per_min = (slope * _SCRAPES_PER_MIN) / _MB
 
-            # Leak detection
-            if slope_mb_per_min > MEM_LEAK_SLOPE_MB_PER_MIN and r_squared > MEM_LEAK_R2_MIN:
+            # Leak detection (skip database pods — RSS growth is expected)
+            if pod.container not in _MEMORY_LEAK_EXCLUDE and slope_mb_per_min > MEM_LEAK_SLOPE_MB_PER_MIN and r_squared > MEM_LEAK_R2_MIN:
                 await self.publish_finding({
                     "anomaly_type": MEMORY_LEAK,
                     "severity": SEV_WARNING,

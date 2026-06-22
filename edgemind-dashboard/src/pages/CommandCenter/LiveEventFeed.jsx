@@ -38,7 +38,7 @@ export default function LiveEventFeed() {
     correlatedAlerts.forEach(a => out.push({
       kind: 'alert',
       ts: a.timestamp,
-      sev: 'info',
+      sev: a.severity || 'warning',
       text: `${a.alert_type || 'correlated alert'}${a.root_cause_pod ? ` · root cause ${a.root_cause_pod}` : ''}`,
     }))
 

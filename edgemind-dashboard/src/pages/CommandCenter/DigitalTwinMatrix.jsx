@@ -17,13 +17,14 @@ const PUMPS = [
 
 export default function DigitalTwinMatrix() {
   const navigate = useNavigate()
-  const { sensorReadings, pumpAlerts, demoLab } = useAppState()
+  const { sensorReadings, pumpAlerts, demoLab, liveScores } = useAppState()
 
   const alertsByPump = useMemo(() => {
     const map = {}
     pumpAlerts.forEach(a => {
       const id = a.pump_id || a.pump
-      if (id && !map[id]) map[id] = a
+      if (!id) return
+      if (!map[id] || new Date(a.timestamp) > new Date(map[id].timestamp)) map[id] = a
     })
     return map
   }, [pumpAlerts])
@@ -46,8 +47,8 @@ export default function DigitalTwinMatrix() {
           title={p.title}
           sensorName={PUMP_TO_SENSOR[p.id]}
           readings={sensorReadings[p.id] || {}}
-          alert={alertsByPump[p.id] || null}
-          activeFault={demoLab.activeFaults?.[p.id] || null}
+          alert={alertsByPump[p.id] || liveScores[p.id] || null}
+          activeFault={demoLab.activeFaults?.[p.id] || sensorReadings[p.id]?.active_fault || null}
         />
       ))}
     </div>

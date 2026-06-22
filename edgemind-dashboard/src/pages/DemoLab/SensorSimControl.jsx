@@ -10,7 +10,7 @@ const PUMP_TO_SENSOR = {
   pump3: 'sensor-sim-3',
 }
 
-function ReadingRow({ label, value, unit, warn, crit, flip = false }) {
+function ReadingRow({ label, value, unit, warn, crit, flip = false, digits = 1 }) {
   let color = 'var(--color-text-secondary)'
   if (value != null && warn != null && crit != null) {
     if (flip) {
@@ -23,7 +23,7 @@ function ReadingRow({ label, value, unit, warn, crit, flip = false }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '2px 0' }}>
       <span style={{ color: 'var(--color-text-tertiary)' }}>{label}</span>
       <span style={{ color, fontVariantNumeric: 'tabular-nums' }}>
-        {value != null ? `${Number(value).toFixed(1)} ${unit}` : '—'}
+        {value != null ? `${Number(value).toFixed(digits)} ${unit}` : '—'}
       </span>
     </div>
   )
@@ -33,11 +33,11 @@ export default function SensorSimControl({ pumpId }) {
   const { sensorReadings, demoLab } = useAppState()
   const readings = sensorReadings[pumpId] || {}
   const { inject, clear, loading } = useFaultInjection(pumpId)
-  const activeFault = demoLab.activeFaults?.[pumpId]
+  const activeFault = demoLab.activeFaults?.[pumpId] || readings.active_fault || null
   const sensorName = PUMP_TO_SENSOR[pumpId] || pumpId
 
   const [mode, setMode] = useState('imbalance')
-  const [duration, setDuration] = useState(120)
+  const [duration, setDuration] = useState(300)
   const selectedMode = FAULT_MODES.find(f => f.id === mode)
 
   const emissionHz = readings.emission_hz ?? null
@@ -54,7 +54,9 @@ export default function SensorSimControl({ pumpId }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
           <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-primary)' }}>{sensorName}</span>
           <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>({pumpId})</span>
-          {readings.vibration_axial != null && <IsoZoneBadge mmPerS={readings.vibration_axial} />}
+          {(readings.vibration_axial != null || readings.vibration_radial != null) && (
+            <IsoZoneBadge mmPerS={Math.max(readings.vibration_axial ?? 0, readings.vibration_radial ?? 0)} />
+          )}
         </div>
         {/* Status line */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -83,7 +85,7 @@ export default function SensorSimControl({ pumpId }) {
         <ReadingRow label="Vib Axial"  value={readings.vibration_axial}    unit="mm/s" warn={1.5} crit={3.0} />
         <ReadingRow label="Vib Radial" value={readings.vibration_radial}   unit="mm/s" warn={2.0} crit={4.0} />
         <ReadingRow label="Temp"       value={readings.temperature}        unit="°C"   warn={55}  crit={65} />
-        <ReadingRow label="RPM"        value={readings.rpm}                unit="rpm"  warn={1200} crit={900} flip />
+        <ReadingRow label="RPM"        value={readings.rpm}                unit="rpm"  warn={1200} crit={900} flip digits={0} />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '2px 0', marginTop: 2, borderTop: '1px solid var(--color-border-card)' }}>
           <span style={{ color: 'var(--color-text-tertiary)' }}>Emission rate</span>
           <span style={{

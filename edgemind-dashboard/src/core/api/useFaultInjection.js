@@ -19,7 +19,7 @@ export function useFaultInjection(pumpId) {
     setError(null)
     try {
       const body = { mode }
-      if (duration) body.duration = duration
+      if (duration) body.duration_s = duration
       const res = await fetch(`${base}/inject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

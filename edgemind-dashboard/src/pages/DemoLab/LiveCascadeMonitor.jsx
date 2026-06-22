@@ -5,10 +5,8 @@ import { SCENARIOS } from '../../core/constants/faultModes.js'
 import SeverityBadge from '../../components/ui/SeverityBadge.jsx'
 import AgentTag from '../../components/ui/AgentTag.jsx'
 
-const WATCH_PODS = [
-  'sensor-sim-2', 'opc-ua-collector', 'data-historian',
-  'feature-extractor', 'health-scorer',
-]
+const PIPELINE_TAIL = ['opc-ua-collector', 'data-historian', 'feature-extractor', 'health-scorer']
+const PUMP_TO_SENSOR_SIM = { pump1: 'sensor-sim-1', pump2: 'sensor-sim-2', pump3: 'sensor-sim-3' }
 
 // Thresholds for sensor reading trend bars
 const SENSOR_PARAMS = [
@@ -126,9 +124,20 @@ export default function LiveCascadeMonitor() {
     : null
 
   const startedAt = demoLab.scenarioStartedAt
-  const activePump   = activeScenario?.targetPump    // 'pump2'
-  const activeSensor = activeScenario?.targetSensor  // 'sensor-sim-2'
+
+  // Support both scenario-based and manual fault injection
+  const activeFaults = demoLab.activeFaults || {}
+  const manualFaultPump =
+    Object.entries(activeFaults).find(([, v]) => v)?.[0] ||
+    Object.entries(sensorReadings).find(([, r]) => r?.active_fault)?.[0] ||
+    null
+  const activePump   = activeScenario?.targetPump   || manualFaultPump
+  const activeSensor = activeScenario?.targetSensor || (manualFaultPump ? PUMP_TO_SENSOR_SIM[manualFaultPump] : null)
   const sensorData   = activePump ? (sensorReadings[activePump] || {}) : {}
+
+  const watchPods = activeSensor
+    ? [activeSensor, ...PIPELINE_TAIL]
+    : PIPELINE_TAIL
 
   // Findings scoped to scenario window (or last 20 if no scenario)
   const recentFindings = useMemo(() => {
@@ -176,7 +185,9 @@ export default function LiveCascadeMonitor() {
     }
   }, [recentFindings, scenarioAlert, activeSensor])
 
-  const anyActiveFault = Object.values(demoLab.activeFaults || {}).some(Boolean)
+  const anyActiveFault =
+    Object.values(demoLab.activeFaults || {}).some(Boolean) ||
+    Object.values(sensorReadings).some(r => r?.active_fault)
   const elapsed = fmtElapsed(startedAt)
 
   // ── Idle state ────────────────────────────────────────────────────────
@@ -209,10 +220,10 @@ export default function LiveCascadeMonitor() {
 
       {/* ── Pipeline node row ─────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        {WATCH_PODS.map((pod, i) => (
+        {watchPods.map((pod, i) => (
           <div key={pod} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <PodStatusBox podName={pod} findings={recentFindings} />
-            {i < WATCH_PODS.length - 1 && (
+            {i < watchPods.length - 1 && (
               <span style={{ fontSize: 14, color: 'var(--color-text-tertiary)' }}>→</span>
             )}
           </div>

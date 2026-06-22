@@ -58,13 +58,14 @@ function PumpHealthCard({ pump, alert }) {
 }
 
 export default function HealthScorerPanel({ podName }) {
-  const { pumpAlerts } = useAppState()
+  const { pumpAlerts, liveScores } = useAppState()
 
   const alertsByPump = useMemo(() => {
     const map = {}
     pumpAlerts.forEach(a => {
       const id = a.pump_id || a.pump
-      if (id && !map[id]) map[id] = a
+      if (!id) return
+      if (!map[id] || new Date(a.timestamp) > new Date(map[id].timestamp)) map[id] = a
     })
     return map
   }, [pumpAlerts])
@@ -73,7 +74,7 @@ export default function HealthScorerPanel({ podName }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', justifyContent: 'center' }}>
 
       {PUMPS.map(pump => (
-        <PumpHealthCard key={pump} pump={pump} alert={alertsByPump[pump] || null} />
+        <PumpHealthCard key={pump} pump={pump} alert={alertsByPump[pump] || liveScores[pump] || null} />
       ))}
 
       <div style={{ marginTop: 2, fontSize: 11, color: 'var(--color-text-secondary)', background: 'var(--color-bg-card)', border: '1px solid var(--color-border-card)', boxShadow: '0 1px 3px var(--color-shadow)', borderRadius: 4, padding: '6px 10px' }}>

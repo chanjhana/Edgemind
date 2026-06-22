@@ -24,11 +24,79 @@ function MiniGaugeBar({ label, value, max = 1, color = 'var(--color-info)' }) {
   )
 }
 
+function fmtBytes(b) {
+  if (b == null) return '—'
+  if (b >= 1e9) return `${(b / 1e9).toFixed(1)} GB`
+  if (b >= 1e6) return `${(b / 1e6).toFixed(0)} MB`
+  return `${b} B`
+}
+
+function PvcDrawer({ podName, pvcs, findings, onClose }) {
+  const pvcKey = podName.replace(/^pvc-/, '')
+  const pvc = pvcs[pvcKey] || {}
+  const fill = pvc.fill_pct
+  const pvcFindings = findings.filter(f => f.pvc_name === pvcKey).slice(0, 5)
+  const fillColor = fill == null ? 'var(--color-text-tertiary)'
+    : fill >= 85 ? 'var(--color-danger)'
+    : fill >= 70 ? 'var(--color-warning)'
+    : 'var(--color-success)'
+
+  return (
+    <div style={drawerShell}>
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--color-border-card)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)' }}>{pvcKey}</div>
+          <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 1 }}>persistent volume claim</div>
+        </div>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div>
+          <PanelHeader title="Capacity" style={{ marginBottom: 6 }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+            <span style={{ color: 'var(--color-text-tertiary)' }}>Fill</span>
+            <span style={{ color: fillColor, fontWeight: 700 }}>{fill != null ? `${fill}%` : '—'}</span>
+          </div>
+          <div style={{ height: 6, background: 'var(--color-border-secondary)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ width: `${fill || 0}%`, height: '100%', background: fillColor, borderRadius: 3, transition: 'width 0.4s' }} />
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 6 }}>
+            {fmtBytes(pvc.used)} / {fmtBytes(pvc.capacity)} used
+          </div>
+          {pvc.ttf_minutes != null && (
+            <div style={{ fontSize: 10, color: 'var(--color-warning)', marginTop: 3 }}>
+              Est. time to full: {pvc.ttf_minutes} min
+            </div>
+          )}
+        </div>
+
+        {pvcFindings.length > 0 && (
+          <div>
+            <PanelHeader title="Storage Findings" style={{ marginBottom: 6 }} />
+            {pvcFindings.map((f, i) => (
+              <div key={i} style={{ padding: '5px 0', borderBottom: '1px solid var(--color-border-card)', display: 'flex', gap: 6, alignItems: 'center', fontSize: 11 }}>
+                <SeverityBadge severity={f.severity} />
+                <AgentTag agent={f.agent} />
+                <span style={{ flex: 1, color: 'var(--color-text-secondary)' }}>{f.deviation || f.anomaly_type}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function NodeDetailDrawer({ podName, onClose }) {
-  const { findings, metrics, pumpAlerts } = useAppState()
+  const { findings, metrics, pumpAlerts, pvcs } = useAppState()
   const navigate = useNavigate()
 
   if (!podName) return null
+
+  if (podName.startsWith('pvc-')) {
+    return <PvcDrawer podName={podName} pvcs={pvcs} findings={findings} onClose={onClose} />
+  }
 
   const role = POD_ROLES[podName] || ''
   const ns   = POD_NAMESPACES[podName] || 'unknown'
@@ -181,4 +249,11 @@ function actionBtn(color, bg) {
     width: '100%', padding: '5px 0', borderRadius: 4, cursor: 'pointer',
     background: bg, color, border: `1px solid ${color}`, fontSize: 11,
   }
+}
+
+const drawerShell = {
+  position: 'absolute', right: 16, top: 16, bottom: 16, width: 320,
+  background: 'var(--color-bg-card)', borderRadius: 12,
+  boxShadow: '0 4px 20px rgba(0,0,0,0.15)', border: '1px solid var(--color-border-card)',
+  display: 'flex', flexDirection: 'column', zIndex: 20, overflow: 'hidden',
 }

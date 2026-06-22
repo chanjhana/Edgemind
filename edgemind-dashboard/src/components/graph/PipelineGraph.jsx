@@ -1,5 +1,8 @@
 import { useMemo, useState, useRef } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
+import { findMetrics } from '../../core/selectors/podHealth.js'
+import { latestActiveCorrelation } from '../../core/selectors/correlations.js'
+import { useNow } from '../../core/hooks/useNow.js'
 import {
   LAYERS, MONITORING_LAYER, PVC_NODES,
   NODE_POSITIONS, SERVICE_EDGES, DATA_EDGES,
@@ -26,7 +29,12 @@ export default function PipelineGraph({
   width,
   height,
 }) {
-  const { findings, activeIncident, metrics, pvcs } = useAppState()
+  const { findings, correlatedAlerts, metrics, pvcs } = useAppState()
+  const now = useNow(5000)
+  const activeIncident = useMemo(
+    () => latestActiveCorrelation(correlatedAlerts, findings, now),
+    [correlatedAlerts, findings, now]
+  )
 
   // Panning state
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -55,6 +63,12 @@ export default function PipelineGraph({
   const causalChain   = activeIncident?.causal_chain  || []
   const rootCausePod  = activeIncident?.root_cause_pod || null
 
+  // Prometheus uses full pod names; graph nodes use short deployment names.
+  // Strip the two trailing k8s hash segments so matching works correctly.
+  const toShortName = name => name.replace(/-[a-z0-9]+-[a-z0-9]+$/, '')
+  const causalSet      = useMemo(() => new Set(causalChain.map(toShortName)), [causalChain])
+  const rootCauseShort = rootCausePod ? toShortName(rootCausePod) : null
+
   const allPods = useMemo(() => [...LAYERS.flat(), ...MONITORING_LAYER], [])
   const visiblePods = useMemo(() => (
     showMonitoring ? allPods : allPods.filter(pod => !MONITORING_LAYER.includes(pod))
@@ -72,7 +86,7 @@ export default function PipelineGraph({
   const visiblePodSet = useMemo(() => {
     const set = new Set()
     visiblePods.forEach(pod => {
-      if (!onlyAnomalous || podHealthMap[pod] !== 'unknown' || causalChain.includes(pod)) {
+      if (!onlyAnomalous || podHealthMap[pod] !== 'unknown' || causalSet.has(pod)) {
         set.add(pod)
       }
     })
@@ -129,7 +143,7 @@ export default function PipelineGraph({
             type="service"
             routing={e.routing}
             health={podHealthMap[e.from] || 'unknown'}
-            isActive={causalChain.includes(e.from) && causalChain.includes(e.to)}
+            isActive={causalSet.has(e.from) && causalSet.has(e.to)}
             noArrow={e.noArrow}
           />
         ))}
@@ -153,7 +167,7 @@ export default function PipelineGraph({
         ))}
 
       {/* Causal path overlay */}
-      <CausalPathOverlay causalChain={causalChain} />
+      <CausalPathOverlay causalChain={[...causalSet]} />
 
       {/* Pipeline pod nodes */}
       {visiblePods
@@ -161,7 +175,7 @@ export default function PipelineGraph({
         .map(pod => {
           const pos = NODE_POSITIONS[pod]
           if (!pos) return null
-          const podMetrics = metrics[pod] || {}
+          const podMetrics = findMetrics(metrics, pod)
           const cpuArr   = podMetrics.cpu_usage || []
           const cpuRate  = cpuArr.length ? cpuArr[cpuArr.length - 1] || 0 : 0
           const cpuLimit = podMetrics.cpu_limit || null
@@ -175,8 +189,8 @@ export default function PipelineGraph({
               cpuRate={cpuRate}
               cpuLimit={cpuLimit}
               hasActiveFinding={activeFindingPods.has(pod)}
-              isRootCause={pod === rootCausePod}
-              isInCausalPath={causalChain.includes(pod)}
+              isRootCause={pod === rootCauseShort}
+              isInCausalPath={causalSet.has(pod)}
               isPvc={false}
               x={pos.x}
               y={pos.y}

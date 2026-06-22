@@ -13,6 +13,9 @@ export default function DemoTopBar() {
   const activeFaults = Object.entries(demoLab.activeFaults || {}).filter(([, v]) => v)
   const activeFaultCount = activeFaults.length
   const anyActive = activeFaultCount > 0
+  // Scenarios 2 (leak) and 3 (PVC fill) run without a per-pump fault, so the
+  // pump-fault map alone misses them — track the active scenario too.
+  const scenarioActive = demoLab.activeScenarioId != null
 
   // Determine system status: CRITICAL if any finding in the last 2 min is critical severity
   const isCritical = useMemo(() => {
@@ -22,14 +25,17 @@ export default function DemoTopBar() {
     )
   }, [findings])
 
+  const degraded = anyActive || scenarioActive
+
   const statusColor = isCritical ? 'var(--color-danger)'
-    : anyActive ? 'var(--color-warning)'
+    : degraded ? 'var(--color-warning)'
     : 'var(--color-success)'
 
-  const statusIcon = isCritical ? '⚡' : anyActive ? '⚠' : '✓'
+  const statusIcon = isCritical ? '⚡' : degraded ? '⚠' : '✓'
 
   const statusLabel = isCritical ? 'CRITICAL'
     : anyActive ? `${activeFaultCount} Active Fault${activeFaultCount > 1 ? 's' : ''}`
+    : scenarioActive ? 'Scenario Running'
     : 'System Nominal'
 
   async function clearAll() {
