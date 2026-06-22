@@ -61,6 +61,13 @@ export const initialState = {
     activeFaults: { pump1: null, pump2: null, pump3: null },
   },
 
+  // DMD early-warning state — populated by dmd_* findings from the DMD agent
+  dmdForecasts: {
+    warnings: [],      // [{ pod, metric, predicted_breach_seconds, ... }], max 20
+    instabilities: [], // [{ pod, dominant_growth_rate_per_sec, ... }], max 10
+    lastUpdated: null,
+  },
+
   selectedPod: null,
   selectedNamespaceFilter: 'all',
   selectedIncidentId: null,
@@ -211,6 +218,12 @@ export default function reducer(state, action) {
 
     case A.AGENT_FINDING: {
       const finding = action.payload
+
+      // DMD findings are advisory — route to dmdForecasts, not main findings list
+      if (finding.is_dmd) {
+        return reducer(state, { type: A.DMD_FORECAST_UPDATE, payload: finding })
+      }
+
       const findings = [finding, ...state.findings].slice(0, MAX_FINDINGS)
       const agent = finding.agent
       const heartbeats = agent
@@ -293,6 +306,37 @@ export default function reducer(state, action) {
 
     case A.ALERTS_CLEARED:
       return { ...state, correlatedAlerts: [], activeIncident: null }
+
+    case A.DMD_FORECAST_UPDATE: {
+      const finding = action.payload
+      const isInstability = finding.anomaly_type === 'dmd_instability'
+
+      const warnings = isInstability
+        ? state.dmdForecasts.warnings
+        : [
+            finding,
+            // Remove any older warning for the same pod+metric combination
+            ...state.dmdForecasts.warnings.filter(
+              w => !(w.pod === finding.pod && w.metric === finding.metric)
+            ),
+          ].slice(0, 20)
+
+      const instabilities = isInstability
+        ? [
+            finding,
+            ...state.dmdForecasts.instabilities.filter(i => i.pod !== finding.pod),
+          ].slice(0, 10)
+        : state.dmdForecasts.instabilities
+
+      return {
+        ...state,
+        dmdForecasts: {
+          warnings,
+          instabilities,
+          lastUpdated: finding.timestamp || new Date().toISOString(),
+        },
+      }
+    }
 
     default:
       return state

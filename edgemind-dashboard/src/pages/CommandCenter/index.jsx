@@ -7,6 +7,7 @@ import AgentGrid from './AgentGrid.jsx'
 import InfraMonitor from './InfraMonitor.jsx'
 import LiveEventFeed from './LiveEventFeed.jsx'
 import PanelHeader from '../../components/ui/PanelHeader.jsx'
+import DMDWarningPanel from '../../components/ui/DMDWarningPanel.jsx'
 
 // Command Center — the prototype's main dashboard, laid out in five bands:
 //   0  Live ops header (identity + connectivity)
@@ -23,6 +24,9 @@ export default function CommandCenter() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Band 1 */}
       <KpiStrip />
+
+      {/* Band 1.5 — DMD Early Warnings (hidden when no active forecasts) */}
+      <DMDWarningPanel />
 
       {/* Band 2 — twins | graph | root cause */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>

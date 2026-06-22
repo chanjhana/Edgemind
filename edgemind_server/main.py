@@ -279,7 +279,7 @@ async def _metric_broadcast_loop() -> None:
 
 async def _heartbeat_broadcast_loop() -> None:
     """Poll Redis heartbeat keys and broadcast agent_heartbeat events."""
-    agents = ["cpu", "memory", "storage", "network_log"]
+    agents = ["cpu", "memory", "storage", "network_log", "dmd"]
     while True:
         await asyncio.sleep(HEARTBEAT_BROADCAST_INTERVAL)
         try:
@@ -339,8 +339,8 @@ async def get_metrics():
 
 @app.get("/api/agent-status")
 async def get_agent_status():
-    """Check heartbeats of all 4 agents."""
-    agents = ["cpu", "memory", "storage", "network_log"]
+    """Check heartbeats of all 4 core agents + DMD early-warning agent."""
+    agents = ["cpu", "memory", "storage", "network_log", "dmd"]
     status = {}
     for agent in agents:
         key = f"edgemind:heartbeat:{agent}"
@@ -350,6 +350,15 @@ async def get_agent_status():
             "last_heartbeat": val,
         }
     return JSONResponse(status)
+
+@app.get("/api/dmd-forecasts")
+async def get_dmd_forecasts(limit: int = 20):
+    """Return latest DMD early-warning findings (is_dmd=True) for initial page load."""
+    dmd_findings = [
+        f for f in list(_recent_findings)
+        if f.get("is_dmd") is True
+    ][:limit]
+    return JSONResponse({"dmd_findings": dmd_findings, "count": len(dmd_findings)})
 
 @app.delete("/api/alerts")
 async def clear_alerts():
@@ -405,7 +414,7 @@ async def websocket_endpoint(ws: WebSocket):
             }
         }, default=str))
         # Emit current heartbeats immediately so dashboard doesn't wait 30s
-        for agent in ["cpu", "memory", "storage", "network_log"]:
+        for agent in ["cpu", "memory", "storage", "network_log", "dmd"]:
             val = await _redis.get(f"edgemind:heartbeat:{agent}")
             if val:
                 await ws.send_text(json.dumps({

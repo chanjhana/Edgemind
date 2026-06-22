@@ -13,6 +13,7 @@ from edgemind_agents.agents.cpu_agent import CPUAgent
 from edgemind_agents.agents.memory_agent import MemoryAgent
 from edgemind_agents.agents.storage_agent import StorageAgent
 from edgemind_agents.agents.network_log_agent import NetworkLogAgent
+from edgemind_agents.agents.dmd_agent import DMDAgent
 from edgemind_agents.health_server import start_health_server
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -68,6 +69,7 @@ async def main():
         "memory":  asyncio.Queue(maxsize=1),
         "storage": asyncio.Queue(maxsize=1),
         "network": asyncio.Queue(maxsize=1),
+        "dmd":     asyncio.Queue(maxsize=1),  # DMD early-warning agent
     }
 
     prometheus_url = os.environ.get("PROMETHEUS_URL", PROMETHEUS_URL)
@@ -76,6 +78,7 @@ async def main():
     memory_agent  = MemoryAgent("memory", queues["memory"], redis)
     storage_agent = StorageAgent("storage", queues["storage"], redis, k8s_v1)
     network_agent = NetworkLogAgent("network_log", queues["network"], redis, k8s_v1)
+    dmd_agent     = DMDAgent("dmd", queues["dmd"], redis)
 
     tasks = [
         asyncio.create_task(run_with_restart(collector.run,      "collector")),
@@ -83,6 +86,7 @@ async def main():
         asyncio.create_task(run_with_restart(memory_agent.run,   "memory_agent")),
         asyncio.create_task(run_with_restart(storage_agent.run,  "storage_agent")),
         asyncio.create_task(run_with_restart(network_agent.run,  "network_agent")),
+        asyncio.create_task(run_with_restart(dmd_agent.run,      "dmd_agent")),
     ]
 
     shutdown_event = asyncio.Event()

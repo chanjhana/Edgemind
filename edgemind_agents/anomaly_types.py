@@ -27,6 +27,13 @@ LOG_ERROR_SURGE = "log_error_surge"
 TIMEOUT_PATTERN = "timeout_pattern"
 PUMP_HEALTH_CRIT = "pump_health_critical"
 
+# DMD Early Warning anomaly types
+DMD_CPU_FORECAST  = "dmd_cpu_forecast"
+DMD_MEM_FORECAST  = "dmd_mem_forecast"
+DMD_IO_FORECAST   = "dmd_io_forecast"
+DMD_NET_FORECAST  = "dmd_net_forecast"
+DMD_INSTABILITY   = "dmd_instability"
+
 # Severity
 SEV_INFO = "info"
 SEV_WARNING = "warning"
@@ -37,6 +44,7 @@ AGENT_CPU = "cpu"
 AGENT_MEMORY = "memory"
 AGENT_STORAGE = "storage"
 AGENT_NETWORK_LOG = "network_log"
+AGENT_DMD = "dmd"
 
 # Redis keys
 REDIS_FINDINGS_KEY = "edgemind:findings"
@@ -127,3 +135,23 @@ CRITICAL_K8S_EVENTS = {
     "FailedMount": K8S_FAILED_MOUNT,
     "NodeNotReady": K8S_NODE_NOT_READY,
 }
+
+# ── DMD tuning constants ──────────────────────────────────────────────────────
+# Window and fit schedule
+DMD_WINDOW              = 30      # rolling buffer size (snapshots)
+DMD_WARMUP_MIN          = 20      # minimum snapshots before first DMD fit
+DMD_FIT_INTERVAL        = 3       # fit every N collector cycles (45s at 15s/cycle)
+DMD_FORECAST_STEPS      = 8       # steps to forecast ahead (2 min at 15s/step)
+DMD_N_MODES             = None    # None = keep all significant SVD modes
+
+# Growth-rate threshold: σ > 0.001/s means amplitude doubles in < 12 minutes
+DMD_GROWTH_RATE_THRESH  = 0.001   # 1/second
+
+# Cooldown between same-metric warnings per pod (seconds)
+DMD_WARNING_COOLDOWN_S  = 300
+
+# Per-metric breach ratios (fraction of resource limit)
+DMD_CPU_BREACH_RATIO    = 0.90    # 90% of cpu_limit_cores
+DMD_MEM_BREACH_RATIO    = 0.85    # 85% of mem_limit_bytes
+DMD_IO_BREACH_RATIO     = 0.80    # 80% I/O saturation
+DMD_NET_FLOOD_FACTOR    = 3.0     # TX normalised against P75 × this factor
