@@ -1,0 +1,46 @@
+{{- if .Values.opcUaCollector.enabled }}
+# Single process for all sensors — the intended flood bottleneck.
+# SENSOR_ENDPOINTS uses Kubernetes service DNS within the pump-station namespace.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opc-ua-collector
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opc-ua-collector
+  template:
+    metadata:
+      labels:
+        app: opc-ua-collector
+        component: pipeline
+    spec:
+      containers:
+      - name: opc-ua-collector
+        image: {{ include "edgemind.image" (dict "repo" .Values.opcUaCollector.image "tag" .Values.opcUaCollector.tag "root" .) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        env:
+        - name: SENSOR_ENDPOINTS
+          value: {{ .Values.opcUaCollector.sensorEndpoints | quote }}
+        - name: INFLUX_URL
+          value: {{ .Values.influx.url | quote }}
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.influxdbToken.secretName }}
+              key: {{ .Values.influxdbToken.secretKey }}
+        - name: INFLUX_ORG
+          value: {{ .Values.influx.org | quote }}
+        - name: INFLUX_BUCKET
+          value: {{ .Values.influx.bucket | quote }}
+        - name: FLUSH_INTERVAL_S
+          value: {{ .Values.opcUaCollector.flushIntervalS | quote }}
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          {{- toYaml .Values.opcUaCollector.resources | nindent 10 }}
+{{- end }}

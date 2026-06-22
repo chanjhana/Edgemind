@@ -1,0 +1,77 @@
+{{- if .Values.sensorSims.enabled }}
+{{- $root := . }}
+{{- $ss := .Values.sensorSims }}
+{{- range $ss.pumps }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .name }}
+  namespace: {{ $root.Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" $root | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .name }}
+        pump: {{ .pumpId }}
+        component: sensor
+    spec:
+      containers:
+      - name: {{ .name }}
+        image: {{ include "edgemind.image" (dict "repo" $ss.image "tag" $ss.tag "root" $root) }}
+        imagePullPolicy: {{ $ss.pullPolicy }}
+        env:
+        - name: PUMP_ID
+          value: {{ .pumpId | quote }}
+        - name: OPC_PORT
+          value: {{ .opcPort | quote }}
+        - name: HTTP_PORT
+          value: {{ $ss.httpPort | quote }}
+        - name: LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: {{ .opcPort }}
+          name: opcua
+        - containerPort: {{ $ss.httpPort }}
+          name: http
+        resources:
+          {{- toYaml $ss.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ $ss.httpPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ $ss.httpPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}-svc
+  namespace: {{ $root.Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" $root | nindent 4 }}
+spec:
+  selector:
+    app: {{ .name }}
+  ports:
+  - name: opcua
+    port: {{ .opcPort }}
+    targetPort: {{ .opcPort }}
+  - name: http
+    port: {{ $ss.httpPort }}
+    targetPort: {{ $ss.httpPort }}
+---
+{{- end }}
+{{- end }}

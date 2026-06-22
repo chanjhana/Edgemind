@@ -1,0 +1,59 @@
+{{- if .Values.mockUpload.enabled }}
+# Simulated cloud upload endpoint. Receives Parquet from batch-sync, logs
+# filename+size, discards bytes — creates the network egress burst.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-upload
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-upload
+  template:
+    metadata:
+      labels:
+        app: mock-upload
+        component: pipeline
+    spec:
+      containers:
+      - name: mock-upload
+        image: {{ include "edgemind.image" (dict "repo" .Values.mockUpload.image "tag" .Values.mockUpload.tag "root" .) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        env:
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: {{ .Values.mockUpload.port | quote }}
+        - name: LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: {{ .Values.mockUpload.port }}
+          name: http
+        resources:
+          {{- toYaml .Values.mockUpload.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.mockUpload.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-upload-svc
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: mock-upload
+  ports:
+  - name: http
+    port: {{ .Values.mockUpload.port }}
+    targetPort: {{ .Values.mockUpload.port }}
+{{- end }}

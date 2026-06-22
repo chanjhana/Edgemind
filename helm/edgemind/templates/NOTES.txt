@@ -1,0 +1,30 @@
+EdgeMind {{ .Chart.AppVersion }} deployed (release: {{ .Release.Name }}).
+
+Namespaces:
+  - {{ .Values.namespaces.monitoring }}   (agents, server, redis)
+  - {{ .Values.namespaces.pumpStation }}  (pump-station pipeline)
+
+⚠ External dependencies — this chart does NOT install them. Make sure they exist:
+  1. InfluxDB (data-historian) in {{ .Values.namespaces.pumpStation }}:
+       helm upgrade --install data-historian influxdata/influxdb2 \
+         -n {{ .Values.namespaces.pumpStation }} \
+         --set adminUser.organization={{ .Values.influx.org }} \
+         --set adminUser.bucket={{ .Values.influx.bucket }} \
+         --set adminUser.token={{ .Values.influxdbToken.token }}
+  2. kube-prometheus-stack (release "monitoring") in {{ .Values.namespaces.monitoring }}.
+
+{{- if not .Values.llmCredentials.create }}
+
+⚠ LLM credentials secret "{{ .Values.edgemindServer.llm.secretName }}" is NOT managed by this chart
+  (llmCredentials.create=false). Create it before edgemind-server can start:
+    kubectl create secret generic {{ .Values.edgemindServer.llm.secretName }} \
+      -n {{ .Values.namespaces.monitoring }} \
+      --from-literal={{ .Values.edgemindServer.llm.secretKey }}=<YOUR_API_KEY>
+{{- end }}
+
+Check rollout:
+  kubectl get pods -n {{ .Values.namespaces.monitoring }}
+  kubectl get pods -n {{ .Values.namespaces.pumpStation }}
+
+Reach the server (NodePort {{ .Values.edgemindServer.service.nodePort }}) or port-forward:
+  kubectl port-forward -n {{ .Values.namespaces.monitoring }} svc/{{ .Values.edgemindServer.service.name }} 8090:{{ .Values.edgemindServer.service.port }}

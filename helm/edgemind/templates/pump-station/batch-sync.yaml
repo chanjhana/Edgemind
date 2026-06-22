@@ -1,0 +1,85 @@
+{{- if .Values.batchSync.enabled }}
+# Bulk Parquet exporter (scheduled + fault-triggered). Fault exports are
+# permanent on the shared PVC, so PVC fill is measurable across the demo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch-sync
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: batch-sync
+  template:
+    metadata:
+      labels:
+        app: batch-sync
+        component: pipeline
+    spec:
+      containers:
+      - name: batch-sync
+        image: {{ include "edgemind.image" (dict "repo" .Values.batchSync.image "tag" .Values.batchSync.tag "root" .) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        env:
+        - name: INFLUX_URL
+          value: {{ .Values.influx.url | quote }}
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.influxdbToken.secretName }}
+              key: {{ .Values.influxdbToken.secretKey }}
+        - name: INFLUX_ORG
+          value: {{ .Values.influx.org | quote }}
+        - name: INFLUX_BUCKET
+          value: {{ .Values.influx.bucket | quote }}
+        - name: EXPORTS_DIR
+          value: {{ .Values.batchSync.exportsDir | quote }}
+        - name: MOCK_UPLOAD_URL
+          value: {{ .Values.batchSync.mockUploadUrl | quote }}
+        - name: SCHEDULE_S
+          value: {{ .Values.batchSync.scheduleS | quote }}
+        - name: FAULT_WINDOW_MIN
+          value: {{ .Values.batchSync.faultWindowMin | quote }}
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: {{ .Values.batchSync.port | quote }}
+        - name: LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: {{ .Values.batchSync.port }}
+          name: http
+        volumeMounts:
+        - name: export-data
+          mountPath: /data
+        resources:
+          {{- toYaml .Values.batchSync.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.batchSync.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 15
+      volumes:
+      - name: export-data
+        persistentVolumeClaim:
+          claimName: {{ .Values.exportDataPvc.name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: batch-sync-svc
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: batch-sync
+  ports:
+  - name: http
+    port: {{ .Values.batchSync.port }}
+    targetPort: {{ .Values.batchSync.port }}
+{{- end }}

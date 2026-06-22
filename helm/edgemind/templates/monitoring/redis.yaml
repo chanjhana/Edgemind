@@ -1,0 +1,50 @@
+{{- if .Values.redis.enabled }}
+# Redis — findings queue between edgemind-agents and edgemind-server.
+# Agents LPUSH findings. Correlation filter BRPOP. Dashboard relay SUBSCRIBEs.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: {{ .Values.namespaces.monitoring }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: {{ .Values.redis.image }}
+        imagePullPolicy: {{ .Values.redis.pullPolicy }}
+        ports:
+        - containerPort: 6379
+        resources:
+          {{- toYaml .Values.redis.resources | nindent 10 }}
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.redis.serviceName }}
+  namespace: {{ .Values.namespaces.monitoring }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+{{- end }}

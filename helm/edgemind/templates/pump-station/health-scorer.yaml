@@ -1,0 +1,49 @@
+{{- if .Values.healthScorer.enabled }}
+# Reads pump_features, classifies pump health, triggers alert-manager and
+# batch-sync when WARNING/CRITICAL threshold crossed. Log line is parsed by
+# the EdgeMind network+log agent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: health-scorer
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: health-scorer
+  template:
+    metadata:
+      labels:
+        app: health-scorer
+        component: pipeline
+    spec:
+      containers:
+      - name: health-scorer
+        image: {{ include "edgemind.image" (dict "repo" .Values.healthScorer.image "tag" .Values.healthScorer.tag "root" .) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        env:
+        - name: INFLUX_URL
+          value: {{ .Values.influx.url | quote }}
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.influxdbToken.secretName }}
+              key: {{ .Values.influxdbToken.secretKey }}
+        - name: INFLUX_ORG
+          value: {{ .Values.influx.org | quote }}
+        - name: INFLUX_BUCKET
+          value: {{ .Values.influx.bucket | quote }}
+        - name: ALERT_MANAGER_URL
+          value: {{ .Values.healthScorer.alertManagerUrl | quote }}
+        - name: BATCH_SYNC_URL
+          value: {{ .Values.healthScorer.batchSyncUrl | quote }}
+        - name: CYCLE_S
+          value: {{ .Values.healthScorer.cycleS | quote }}
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          {{- toYaml .Values.healthScorer.resources | nindent 10 }}
+{{- end }}

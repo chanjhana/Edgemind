@@ -1,0 +1,18 @@
+{{- if .Values.exportDataPvc.enabled }}
+# PVC-2: shared by alert-manager (/data/alerts) and batch-sync (/data/exports).
+# Concurrent writes create intentional storage contention (scenario IC2).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.exportDataPvc.name }}
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.exportDataPvc.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.exportDataPvc.size }}
+  storageClassName: {{ .Values.exportDataPvc.storageClassName }}
+{{- end }}

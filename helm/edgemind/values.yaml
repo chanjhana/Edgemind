@@ -1,0 +1,257 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# EdgeMind Helm chart values
+#
+# This chart deploys EdgeMind-owned workloads ONLY. Two infrastructure
+# dependencies are installed separately (see chart README / deploy.sh):
+#   - data-historian  (influxdata/influxdb2)           in pump-station
+#   - monitoring       (prometheus-community/kube-prometheus-stack) in monitoring
+# ─────────────────────────────────────────────────────────────────────────────
+
+global:
+  # Registry/prefix for EdgeMind-built images (edgemind/<svc>:<tag>).
+  imageRegistry: edgemind
+  # Default tag for EdgeMind images. deploy.sh builds ":dev" and imports into k3d.
+  imageTag: dev
+  # k3d uses locally-imported images, so Never avoids registry pulls.
+  # Set to IfNotPresent / Always when pulling from a real registry.
+  imagePullPolicy: Never
+
+namespaces:
+  # When true the chart creates the namespaces. Set false if they already exist
+  # (e.g. created by deploy.sh / the external influx & prometheus installs).
+  create: true
+  monitoring: monitoring
+  pumpStation: pump-station
+
+# ── monitoring namespace ─────────────────────────────────────────────────────
+
+rbac:
+  # ServiceAccount + ClusterRole + ClusterRoleBinding granting EdgeMind
+  # read-only access to cluster resources for log/event inspection.
+  create: true
+  serviceAccountName: edgemind-sa
+  clusterRoleName: edgemind-reader
+
+redis:
+  enabled: true
+  # Public image — not under global.imageRegistry.
+  image: redis:7-alpine
+  pullPolicy: IfNotPresent
+  serviceName: redis-svc
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+edgemindAgents:
+  enabled: true
+  image: agents
+  tag: ""        # "" → falls back to global.imageTag
+  replicas: 1
+  # Pinned to kill-old-before-new: the node is CPU-saturated and a default
+  # maxSurge would try to schedule a 2nd pod that cannot fit. See deploy notes.
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+  env:
+    redisUrl: "redis://redis-svc.monitoring.svc.cluster.local:6379"
+    prometheusUrl: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
+    logLevel: "INFO"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+
+edgemindServer:
+  enabled: true
+  image: server
+  tag: ""
+  replicas: 1
+  service:
+    type: NodePort
+    name: edgemind-server-svc
+    port: 8080
+    nodePort: 30080
+  env:
+    redisUrl: "redis://redis-svc.monitoring.svc.cluster.local:6379"
+    prometheusUrl: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
+    ollamaUrl: "http://172.18.0.1:11434"
+    ollamaModel: "qwen3:8b"
+    groqModel: "llama-3.3-70b-versatile"
+    llmBaseUrl: "https://api.groq.com/openai/v1"
+    llmModel: "llama-3.3-70b-versatile"
+    logLevel: "INFO"
+  # Secret holding the LLM/Groq API key. Injected as both GROQ_API_KEY and
+  # LLM_API_KEY. The secret can be created by this chart (see llmCredentials)
+  # or provided out-of-band.
+  llm:
+    secretName: groq-credentials
+    secretKey: api-key
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Optionally let the chart create the LLM/Groq credentials secret.
+# If create is false you MUST create the secret named llmCredentials.secretName
+# (default: groq-credentials) yourself, or edgemind-server will fail to start.
+llmCredentials:
+  create: false
+  apiKey: ""
+
+# ── pump-station namespace ───────────────────────────────────────────────────
+
+resourceQuota:
+  enabled: true
+  hard:
+    requests.cpu: "2"
+    limits.cpu: "4"
+    requests.memory: 2Gi
+    limits.memory: 4Gi
+
+exportDataPvc:
+  # Shared by alert-manager (/data/alerts) and batch-sync (/data/exports).
+  enabled: true
+  name: export-data
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  storageClassName: local-path
+
+influxdbToken:
+  # Token secret consumed by collector / feature-extractor / health-scorer / batch-sync.
+  # Must match the token set in the external InfluxDB install.
+  create: true
+  secretName: influxdb-token
+  secretKey: token
+  token: "edgemind-dev-token"
+
+# Shared InfluxDB connection config (external data-historian).
+influx:
+  url: "http://data-historian-influxdb2.pump-station"
+  org: "edgemind"
+  bucket: "pump_station"
+
+# Three OPC-UA pump simulators. Add/remove entries to scale the fleet.
+sensorSims:
+  enabled: true
+  image: sensor-sim
+  tag: ""
+  pullPolicy: IfNotPresent
+  httpPort: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 200m
+      memory: 192Mi
+  pumps:
+    - name: sensor-sim-1
+      pumpId: pump1
+      opcPort: 4840
+    - name: sensor-sim-2
+      pumpId: pump2
+      opcPort: 4841
+    - name: sensor-sim-3
+      pumpId: pump3
+      opcPort: 4842
+
+opcUaCollector:
+  enabled: true
+  image: opc-ua-collector
+  tag: ""
+  # Derived from the sensor-sim service names + opc ports.
+  sensorEndpoints: "pump1=opc.tcp://sensor-sim-1-svc:4840,pump2=opc.tcp://sensor-sim-2-svc:4841,pump3=opc.tcp://sensor-sim-3-svc:4842"
+  flushIntervalS: "0.5"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+featureExtractor:
+  enabled: true
+  image: feature-extractor
+  tag: ""
+  cycleS: "30"
+  window: "5m"
+  # Set true (or `kubectl set env`) to trigger the memory-leak scenario.
+  leakMode: false
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 600m
+      memory: 512Mi
+
+healthScorer:
+  enabled: true
+  image: health-scorer
+  tag: ""
+  cycleS: "30"
+  alertManagerUrl: "http://alert-manager-svc:8090"
+  batchSyncUrl: "http://batch-sync-svc:8091"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+alertManager:
+  enabled: true
+  image: alert-manager
+  tag: ""
+  port: 8090
+  alertsDir: "/data/alerts"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+batchSync:
+  enabled: true
+  image: batch-sync
+  tag: ""
+  port: 8091
+  exportsDir: "/data/exports"
+  mockUploadUrl: "http://mock-upload-svc:9000"
+  scheduleS: "300"
+  faultWindowMin: "30"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 600m
+      memory: 512Mi
+
+mockUpload:
+  enabled: true
+  image: mock-upload
+  tag: ""
+  port: 9000
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

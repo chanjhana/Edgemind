@@ -1,0 +1,69 @@
+{{- if .Values.alertManager.enabled }}
+# Receives alerts from health-scorer, enriches, writes JSONL to the shared PVC.
+# Shares export-data PVC with batch-sync — concurrent writes create intentional
+# storage contention visible to the storage agent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-manager
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-manager
+  template:
+    metadata:
+      labels:
+        app: alert-manager
+        component: pipeline
+    spec:
+      containers:
+      - name: alert-manager
+        image: {{ include "edgemind.image" (dict "repo" .Values.alertManager.image "tag" .Values.alertManager.tag "root" .) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        env:
+        - name: ALERTS_DIR
+          value: {{ .Values.alertManager.alertsDir | quote }}
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: {{ .Values.alertManager.port | quote }}
+        - name: LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: {{ .Values.alertManager.port }}
+          name: http
+        volumeMounts:
+        - name: export-data
+          mountPath: /data
+        resources:
+          {{- toYaml .Values.alertManager.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.alertManager.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 15
+      volumes:
+      - name: export-data
+        persistentVolumeClaim:
+          claimName: {{ .Values.exportDataPvc.name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-manager-svc
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: alert-manager
+  ports:
+  - name: http
+    port: {{ .Values.alertManager.port }}
+    targetPort: {{ .Values.alertManager.port }}
+{{- end }}

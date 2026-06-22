@@ -1,0 +1,59 @@
+{{- if .Values.edgemindAgents.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edgemind-agents
+  namespace: {{ .Values.namespaces.monitoring }}
+  labels:
+    app: edgemind-agents
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.edgemindAgents.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.edgemindAgents.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.edgemindAgents.rollingUpdate.maxUnavailable }}
+  selector:
+    matchLabels:
+      app: edgemind-agents
+  template:
+    metadata:
+      labels:
+        app: edgemind-agents
+    spec:
+      serviceAccountName: {{ .Values.rbac.serviceAccountName }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: edgemind-agents
+          image: {{ include "edgemind.image" (dict "repo" .Values.edgemindAgents.image "tag" .Values.edgemindAgents.tag "root" .) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 8090
+              name: health
+          env:
+            - name: REDIS_URL
+              value: {{ .Values.edgemindAgents.env.redisUrl | quote }}
+            - name: PROMETHEUS_URL
+              value: {{ .Values.edgemindAgents.env.prometheusUrl | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.edgemindAgents.env.logLevel | quote }}
+          resources:
+            {{- toYaml .Values.edgemindAgents.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 2
+{{- end }}

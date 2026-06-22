@@ -1,0 +1,14 @@
+{{- if .Values.resourceQuota.enabled }}
+# Caps the entire pump-station namespace so namespace-level pressure is visible
+# alongside pod-level pressure under combined fault scenarios.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: pump-station-quota
+  namespace: {{ .Values.namespaces.pumpStation }}
+  labels:
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  hard:
+    {{- toYaml .Values.resourceQuota.hard | nindent 4 }}
+{{- end }}

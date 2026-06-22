@@ -1,0 +1,83 @@
+{{- if .Values.edgemindServer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edgemind-server
+  namespace: {{ .Values.namespaces.monitoring }}
+  labels:
+    app: edgemind-server
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.edgemindServer.replicas }}
+  selector:
+    matchLabels:
+      app: edgemind-server
+  template:
+    metadata:
+      labels:
+        app: edgemind-server
+    spec:
+      serviceAccountName: {{ .Values.rbac.serviceAccountName }}
+      containers:
+        - name: edgemind-server
+          image: {{ include "edgemind.image" (dict "repo" .Values.edgemindServer.image "tag" .Values.edgemindServer.tag "root" .) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: REDIS_URL
+              value: {{ .Values.edgemindServer.env.redisUrl | quote }}
+            - name: PROMETHEUS_URL
+              value: {{ .Values.edgemindServer.env.prometheusUrl | quote }}
+            - name: OLLAMA_URL
+              value: {{ .Values.edgemindServer.env.ollamaUrl | quote }}
+            - name: OLLAMA_MODEL
+              value: {{ .Values.edgemindServer.env.ollamaModel | quote }}
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.edgemindServer.llm.secretName }}
+                  key: {{ .Values.edgemindServer.llm.secretKey }}
+            - name: GROQ_MODEL
+              value: {{ .Values.edgemindServer.env.groqModel | quote }}
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.edgemindServer.llm.secretName }}
+                  key: {{ .Values.edgemindServer.llm.secretKey }}
+            - name: LLM_BASE_URL
+              value: {{ .Values.edgemindServer.env.llmBaseUrl | quote }}
+            - name: LLM_MODEL
+              value: {{ .Values.edgemindServer.env.llmModel | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.edgemindServer.env.logLevel | quote }}
+          resources:
+            {{- toYaml .Values.edgemindServer.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 15
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.edgemindServer.service.name }}
+  namespace: {{ .Values.namespaces.monitoring }}
+  labels:
+    app: edgemind-server
+    {{- include "edgemind.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.edgemindServer.service.type }}
+  selector:
+    app: edgemind-server
+  ports:
+    - name: http
+      port: {{ .Values.edgemindServer.service.port }}
+      targetPort: 8080
+      {{- if and (eq .Values.edgemindServer.service.type "NodePort") .Values.edgemindServer.service.nodePort }}
+      nodePort: {{ .Values.edgemindServer.service.nodePort }}
+      {{- end }}
+{{- end }}
