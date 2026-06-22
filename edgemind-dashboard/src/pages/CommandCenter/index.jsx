@@ -37,6 +37,7 @@ export default function CommandCenter() {
         <div
           style={{
             flex: 1, minWidth: 0,
+            display: 'flex', flexDirection: 'column',
             background: 'var(--color-bg-card)',
             border: '1.5px solid var(--color-border-card)',
             borderRadius: 6, padding: '10px 12px',
@@ -46,7 +47,7 @@ export default function CommandCenter() {
           title="Click to open full Correlation Map"
         >
           <PanelHeader title="Anomaly Propagation Graph" hint="click to expand →" />
-          <div style={{ overflowX: 'auto', pointerEvents: 'none', marginTop: 8, display: 'flex', justifyContent: 'center' }}>
+          <div style={{ flex: 1, overflowX: 'auto', pointerEvents: 'none', marginTop: 8, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             <PipelineGraph showMonitoring={false} />
           </div>
         </div>
