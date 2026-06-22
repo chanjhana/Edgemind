@@ -37,7 +37,7 @@
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
 - [The Problem](#-the-problem)
 - [The Solution](#-the-solution)
@@ -80,27 +80,27 @@ The result is delivered to a real-time React command center: **one incident, one
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- 🧠 **Multi-agent anomaly detection** — CPU, Memory, Storage, Network/Log, and DMD agents, each an independent specialist
-- 🔗 **Deterministic correlation** — reproducible 45s windowing groups multi-agent signals before any AI is involved
-- 🤖 **LLM root-cause orchestration** — tool-calling agent that queries Prometheus, reads pod logs, and inspects K8s events to reason from evidence (not assumptions)
-- 🔮 **DMD predictive early warning** — Dynamic Mode Decomposition forecasts resource breaches *minutes before* they occur
-- 📊 **6-page operations dashboard** — command center, resource radar, dependency graph, anomaly timeline, AI investigation, and a live demo lab
-- 💬 **Industrial Copilot** — chat with live telemetry and incident context
-- 🧪 **Built-in fault injection** — 7 physical fault modes + 4 scripted cascade scenarios for repeatable demos
-- 🩺 **Infra-only & non-invasive** — no SDK changes, no sidecars, watches any workload from the outside
-- ✅ **Fully tested** — agents and pipeline services run their unit suites without a cluster
+- **Multi-agent anomaly detection** — CPU, Memory, Storage, Network/Log, and DMD agents, each an independent specialist
+- **Deterministic correlation** — reproducible 45s windowing groups multi-agent signals before any AI is involved
+- **LLM root-cause orchestration** — tool-calling agent that queries Prometheus, reads pod logs, and inspects K8s events to reason from evidence (not assumptions)
+- **DMD predictive early warning** — Dynamic Mode Decomposition forecasts resource breaches *minutes before* they occur
+- **6-page operations dashboard** — command center, resource radar, dependency graph, anomaly timeline, AI investigation, and a live demo lab
+- **Industrial Copilot** — chat with live telemetry and incident context
+- **Built-in fault injection** — 7 physical fault modes + 4 scripted cascade scenarios for repeatable demos
+- **Infra-only & non-invasive** — no SDK changes, no sidecars, watches any workload from the outside
+- **Fully tested** — agents and pipeline services run their unit suites without a cluster
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
 EdgeMind is a three-layer system running across two Kubernetes namespaces.
 
 ```mermaid
 flowchart TB
-    subgraph PS["🏭 pump-station namespace — the monitored workload (Layer 0)"]
+    subgraph PS[" pump-station namespace — the monitored workload (Layer 0)"]
         direction LR
         S1["sensor-sim-1<br/>(OPC-UA pump)"]
         S2["sensor-sim-2<br/>(OPC-UA pump)"]
@@ -115,7 +115,7 @@ flowchart TB
         S1 & S2 & S3 --> COL --> HIST --> FE --> HS --> AM --> BS --> MU
     end
 
-    subgraph MON["📡 monitoring namespace — EdgeMind (Layers 1 & 2)"]
+    subgraph MON[" monitoring namespace — EdgeMind (Layers 1 & 2)"]
         direction TB
         PROM["Prometheus<br/>(node-exporter + kube-state-metrics)"]
         subgraph AG["edgemind-agents (Layer 1)"]
@@ -123,7 +123,7 @@ flowchart TB
             MEM["Memory agent"]
             STO["Storage agent"]
             NET["Network + Log agent"]
-            DMD["DMD agent 🔮"]
+            DMD["DMD agent "]
         end
         REDIS[("Redis<br/>edgemind:findings")]
         subgraph SRV["edgemind-server (Layer 2)"]
@@ -145,7 +145,7 @@ flowchart TB
 
 ---
 
-## 🟦 Layer 0 — The Pump-Station Pipeline
+## Layer 0 — The Pump-Station Pipeline
 
 A realistic 10-service industrial data pipeline: three OPC-UA pump simulators feed a collect → store → analyze → score → alert → export chain. Every service exposes a fault-injection or behavior API so cascades can be triggered on demand.
 
@@ -162,7 +162,7 @@ A realistic 10-service industrial data pipeline: three OPC-UA pump simulators fe
 
 ---
 
-## 🟨 Layer 1 — Detection Agents
+## Layer 1 — Detection Agents
 
 Five agents poll Prometheus every **15 seconds**, maintain rolling statistical baselines, and publish structured findings to Redis. Each is a focused specialist.
 
@@ -182,13 +182,13 @@ Z-score on write-rate for burst detection; linear regression on PVC `used_bytes`
 `network_flood` · `packet_drop` · `dependency_confirmed` · `log_error_surge` · `timeout_pattern` · `pump_health_critical` · `crash_loop` · `k8s_oomkill`
 P75 baseline flood detection; cross-pod dependency confirmation (TX spike on A correlated with RX spike on B within a lag window). Parses health-scorer structured logs for pump-level fault signatures and watches Kubernetes events for `CrashLoopBackOff` / `OOMKilling` / `BackOff`.
 
-### 🔮 DMD Agent — *Predictive Early Warning*
+### DMD Agent — *Predictive Early Warning*
 `dmd_cpu_forecast` · `dmd_mem_forecast` · `dmd_io_forecast` · `dmd_net_forecast` · `dmd_instability`
 Forecasts resource breaches *before* they occur using Dynamic Mode Decomposition. [See below ↓](#-dmd-early-warning-the-differentiator)
 
 ---
 
-## 🟪 Layer 2 — AI Correlation & Orchestration
+## Layer 2 — AI Correlation & Orchestration
 
 ### Deterministic Correlation Filter
 Before any AI runs, a pure-Python engine ([`correlation_filter.py`](edgemind_server/correlation_filter.py)) reads findings from Redis and groups them into **45-second windows**, deduplicating by `(anomaly_type, pod)`. It triggers the orchestrator on one of three conditions:
@@ -238,7 +238,7 @@ The orchestrator is constrained to **reason from observed evidence only** — it
 
 ---
 
-## 🔮 DMD Early Warning — *The Differentiator*
+## DMD Early Warning — *The Differentiator*
 
 Most monitoring is **reactive**: it fires when a threshold is already crossed. EdgeMind's DMD agent is **predictive**.
 
@@ -254,7 +254,7 @@ This means EdgeMind can warn *"feature-extractor memory is trending to OOM in ~6
 
 <div align="center">
 
-<!-- 📸 SCREENSHOT: DMD forecast chart / DMD Warning Panel. Save as docs/screenshots/dmd-forecast.png -->
+<!-- SCREENSHOT: DMD forecast chart / DMD Warning Panel. Save as docs/screenshots/dmd-forecast.png -->
 <img src="docs/screenshots/dmd-forecast.png" alt="DMD forecast panel" width="700"/>
 
 <sub>DMD projecting a resource trajectory past its limit ahead of the actual breach</sub>
@@ -263,7 +263,7 @@ This means EdgeMind can warn *"feature-extractor memory is trending to OOM in ~6
 
 ---
 
-## 📊 The Dashboard
+## The Dashboard
 
 A real-time React 18 single-page app, fed by a FastAPI WebSocket. Six purpose-built views:
 
@@ -280,7 +280,7 @@ Plus a floating **EdgeMind Copilot** chat that answers questions against live te
 
 <div align="center">
 
-<!-- 📸 SCREENSHOT GALLERY — capture these four and save under docs/screenshots/ -->
+<!-- SCREENSHOT GALLERY — capture these four and save under docs/screenshots/ -->
 <table>
   <tr>
     <td><img src="docs/screenshots/correlation-map.png" alt="Correlation Map" width="410"/><br/><sub>Correlation Map — live dependency graph</sub></td>
@@ -296,17 +296,17 @@ Plus a floating **EdgeMind Copilot** chat that answers questions against live te
 
 ---
 
-## 🔄 End-to-End Workflow
+## End-to-End Workflow
 
 ```mermaid
 flowchart LR
-    A["⚡ Fault injected<br/>(e.g. flood on Pump 2)"] --> B["📈 Metrics shift<br/>in Prometheus"]
-    B --> C["🔍 Agents detect<br/>findings → Redis"]
-    C --> D["🔗 Correlation filter<br/>bundles 45s window"]
-    D --> E["🤖 Orchestrator<br/>investigates with tools"]
-    E --> F["🎯 Root cause +<br/>recommendation"]
-    F --> G["📊 Dashboard<br/>live update via WS"]
-    C -.-> H["🔮 DMD forecasts<br/>breach early"]
+    A["Fault injected<br/>(e.g. flood on Pump 2)"] --> B["Metrics shift<br/>in Prometheus"]
+    B --> C["Agents detect<br/>findings → Redis"]
+    C --> D["Correlation filter<br/>bundles 45s window"]
+    D --> E["Orchestrator<br/>investigates with tools"]
+    E --> F["Root cause +<br/>recommendation"]
+    F --> G["Dashboard<br/>live update via WS"]
+    C -.-> H["DMD forecasts<br/>breach early"]
     H -.-> G
 ```
 
@@ -319,7 +319,7 @@ flowchart LR
 
 ---
 
-## 📦 Finding Schema
+## Finding Schema
 
 Every finding published to Redis is a self-describing evidence package:
 
@@ -344,7 +344,7 @@ Every finding published to Redis is a self-describing evidence package:
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Domain | Technologies |
 |---|---|
@@ -359,7 +359,7 @@ Every finding published to Redis is a self-describing evidence package:
 
 ---
 
-## 🗂 Repository Structure
+## Repository Structure
 
 ```
 k8s-Pod-Resource-AI-Driven-Correlation/
@@ -392,7 +392,7 @@ k8s-Pod-Resource-AI-Driven-Correlation/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 `docker` · `k3d` · `kubectl` · `helm`
@@ -426,7 +426,7 @@ docker-compose up   # brings up the pipeline + agents + Redis without Kubernetes
 
 ---
 
-## 🧪 Fault Injection & Demo Scenarios
+## Fault Injection & Demo Scenarios
 
 Each sensor-sim exposes an HTTP injection API with **7 physical fault modes**:
 
@@ -479,7 +479,7 @@ The server ([`edgemind_server/main.py`](edgemind_server/main.py)) exposes:
 
 ---
 
-## ✅ Testing
+## Testing
 
 ```bash
 # Detection agents — all mocked, no cluster needed
