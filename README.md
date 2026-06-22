@@ -495,27 +495,6 @@ pytest batch_sync/tests/ -v             # export state, parquet round-trip
 
 ---
 
-## Roadmap
-
-| Status | Item |
-|---|---|
-| ✅ | Layer 0 — 10-service pump-station pipeline with fault injection |
-| ✅ | Layer 1 — 5 detection agents (CPU, Memory, Storage, Network/Log, DMD) |
-| ✅ | Layer 2 — deterministic correlation + LLM orchestrator |
-| ✅ | DMD predictive early warning |
-| ✅ | 6-page real-time dashboard + Copilot |
-| 🔲 | Auto-remediation actions (close the loop from diagnosis to fix) |
-| 🔲 | Historical incident replay & post-mortem export |
-| 🔲 | Multi-cluster federation |
-
----
-
-<div align="center">
-
-### Screenshots referenced above
-Capture these and drop them in `docs/screenshots/` to complete the README:
-`command-center.png` · `correlation-map.png` · `ai-investigation.png` · `anomaly-timeline.png` · `demo-lab.png` · `dmd-forecast.png`
-
 <br/>
 
 **EdgeMind** — built for the ABB Edgenius hackathon.
