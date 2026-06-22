@@ -13,15 +13,15 @@ const NS_ORDER = ['pump-station', 'monitoring']
 
 function TimeAxis({ xScale, ticks }) {
   return (
-    <div style={{ display: 'flex', height: 24, position: 'relative', marginLeft: LABEL_WIDTH }}>
+    <div style={{ display: 'flex', height: 28, position: 'relative', marginLeft: LABEL_WIDTH, borderBottom: '2px solid var(--color-border-card)', background: 'linear-gradient(to bottom, var(--color-bg-surface), var(--color-bg-card))', borderTopLeftRadius: 8, borderTopRightRadius: 8 }}>
       {ticks.map((t, i) => {
         const x = xScale(t)
         return (
-          <div key={i} style={{ position: 'absolute', left: x, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ width: 1, height: 8, background: 'var(--color-border-primary)' }} />
-            <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>
+          <div key={i} style={{ position: 'absolute', left: x, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', transform: 'translateX(-50%)', paddingBottom: 6, letterSpacing: '0.02em' }}>
               {new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
+            <div style={{ width: 2, height: 6, background: 'var(--color-text-tertiary)', opacity: 0.6, borderRadius: '2px 2px 0 0' }} />
           </div>
         )
       })}
@@ -86,20 +86,21 @@ export default function TimelineCanvas({ windowMs, typeFilter, nsFilter, paused,
   const eventCount = filteredFindings.length + filteredAlerts.length
 
   return (
-    <div ref={containerRef} style={{ overflowX: 'auto', overflowY: 'auto', flex: 1 }}>
+    <div ref={containerRef} style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, paddingBottom: 16 }}>
       <TimeAxis xScale={xScale} ticks={ticks} />
       <style>{`
         .timeline-ns-group {
-          margin-bottom: 12px;
-          border-radius: 8px;
+          margin-bottom: 16px;
+          border-radius: 0 0 8px 8px;
           background: var(--color-bg-card);
           overflow: hidden;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
         .timeline-pod-row {
           transition: background 0.15s ease;
         }
         .timeline-pod-row:hover {
-          background: var(--color-bg-card-hover);
+          background: var(--color-bg-card-hover) !important;
         }
       `}</style>
       <div style={{ position: 'relative', minWidth: canvasWidth + LABEL_WIDTH }}>
@@ -120,13 +121,14 @@ export default function TimelineCanvas({ windowMs, typeFilter, nsFilter, paused,
                 <div style={{ flex: 1 }} />
               </div>
 
-              {!isCollapsed && pods.map(pod => (
-                <div key={pod} className="timeline-pod-row" style={{ display: 'flex', alignItems: 'stretch' }}>
+              {!isCollapsed && pods.map((pod, i) => (
+                <div key={pod} className="timeline-pod-row" style={{ display: 'flex', alignItems: 'stretch', background: i % 2 === 0 ? 'var(--color-bg-surface)' : 'var(--color-bg-card)' }}>
                   <div style={{
                     width: LABEL_WIDTH, flexShrink: 0, height: ROW_HEIGHT,
-                    display: 'flex', alignItems: 'center', padding: '0 8px',
+                    display: 'flex', alignItems: 'center', padding: '0 12px',
                     borderBottom: '1px solid var(--color-border-card)',
-                    fontSize: 11, color: 'var(--color-text-secondary)',
+                    borderRight: '1px solid var(--color-border-card)',
+                    fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)',
                     overflow: 'hidden',
                   }}>
                     <span style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{pod}</span>
@@ -146,13 +148,15 @@ export default function TimelineCanvas({ windowMs, typeFilter, nsFilter, paused,
 
         {/* Correlation brackets zone — rendered as horizontal bars below all pod rows */}
         {filteredAlerts.length > 0 && (
-          <div style={{ display: 'flex', borderTop: '1px solid var(--color-border-card)' }}>
+          <div style={{ display: 'flex', borderTop: '1px solid var(--color-border-card)', background: 'var(--color-bg-card)' }}>
             <div style={{
               width: LABEL_WIDTH, flexShrink: 0,
-              display: 'flex', alignItems: 'flex-start', padding: '6px 8px',
-              height: filteredAlerts.length * 26 + 12,
+              display: 'flex', alignItems: 'flex-start', padding: '12px',
+              height: filteredAlerts.length * 26 + 24,
+              borderRight: '1px solid var(--color-border-card)',
+              background: 'var(--color-bg-surface)'
             }}>
-              <span style={{ fontSize: 9, color: 'var(--color-info)', fontWeight: 700, letterSpacing: '0.05em' }}>CORRELATIONS</span>
+              <span style={{ fontSize: 10, color: 'var(--color-info)', fontWeight: 800, letterSpacing: '0.06em' }}>CORRELATIONS</span>
             </div>
             <div style={{ flex: 1, position: 'relative', height: filteredAlerts.length * 26 + 12 }}>
               {filteredAlerts.map((a, i) => (

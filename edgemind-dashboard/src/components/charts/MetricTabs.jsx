@@ -10,16 +10,16 @@ function MetricSection({ title, children }) {
       background: 'var(--color-bg-card)',
       border: '1px solid var(--color-border-card)',
       borderRadius: 6,
-      padding: '10px 12px',
+      padding: '12px 16px',
       display: 'flex',
       flexDirection: 'column',
-      gap: 8,
-      minHeight: 0,
+      gap: 10,
+      minHeight: 220,
     }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>
         {title}
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: 8, minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: 10, minHeight: 0 }}>
         {children}
       </div>
     </div>
@@ -34,7 +34,7 @@ export default function MetricTabs({ podName, isKubeSystem, layout }) {
   if (layout === 'column') gridColumns = '1fr'
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: gridColumns, gridTemplateRows: layout === 'column' ? 'repeat(4, 1fr)' : '1fr 1fr', gap: 12, flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: gridColumns, gridTemplateRows: layout === 'column' ? 'repeat(4, auto)' : 'auto auto', gap: 12 }}>
       <MetricSection title="CPU">
         <RollingLineChart style={{ flex: 1, minHeight: 0 }} data={m.cpu_usage || []} color="var(--color-warning)" unit=" cores" label="Usage" height="100%" />
         <RollingLineChart style={{ flex: 1, minHeight: 0 }} data={m.cpu_throttle || []} color="var(--color-warning-border)" unit="%" label="Throttle" height="100%" anomalyThreshold={0.2} />

@@ -15,8 +15,8 @@ export default function PodDetailView({ podName, onBack }) {
   const isKubeSystem = ns === 'kube-system'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div style={{ padding: '1vh 1vw', borderBottom: '1px solid var(--color-border-card)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--color-border-card)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text-primary)', whiteSpace: 'nowrap' }}>{podName}</span>
@@ -32,18 +32,18 @@ export default function PodDetailView({ podName, onBack }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', gap: 0, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: 0 }}>
         {!infoOnly && (
           <div style={{
             flex: 1, borderRight: isKubeSystem ? 'none' : '1px solid var(--color-border-card)',
-            padding: '1.5vh 1vw', minWidth: 0, minHeight: 0, overflow: 'auto'
+            padding: '12px 24px 24px', minWidth: 0
           }}>
             <CommonInfraPanel podName={podName} isKubeSystem={isKubeSystem} />
           </div>
         )}
 
         {!isKubeSystem && (
-          <div style={{ flex: 1, padding: '1.5vh 1vw', minHeight: 0, overflow: 'auto' }}>
+          <div style={{ flex: 1, padding: '12px 24px 24px', minWidth: 0 }}>
             <AppSpecificPanel podName={podName} />
           </div>
         )}

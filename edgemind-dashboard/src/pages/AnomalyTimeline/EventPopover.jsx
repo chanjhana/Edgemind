@@ -18,6 +18,16 @@ function Row({ label, value }) {
 export default function EventPopover({ finding: f, onClose, xLeft }) {
   const ref = useRef(null)
   const { correlatedAlerts } = useAppState()
+  const [verticalPos, setVerticalPos] = useState({ top: 32, bottom: 'auto' })
+
+  useEffect(() => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      if (rect.bottom > window.innerHeight - 20) {
+        setVerticalPos({ top: 'auto', bottom: 28 })
+      }
+    }
+  }, [])
 
   useEffect(() => {
     function handler(e) { if (ref.current && !ref.current.contains(e.target)) onClose() }
@@ -47,7 +57,9 @@ export default function EventPopover({ finding: f, onClose, xLeft }) {
       style={{
         position: 'absolute',
         left: Math.max(0, Math.min(Number(xLeft) || 0, 660)),
-        top: 32, zIndex: 30, width: 300,
+        top: verticalPos.top,
+        bottom: verticalPos.bottom,
+        zIndex: 30, width: 300,
         background: 'var(--color-bg-card)', 
         border: '1px solid var(--color-border-card)',
         borderRadius: 12, padding: 16, 

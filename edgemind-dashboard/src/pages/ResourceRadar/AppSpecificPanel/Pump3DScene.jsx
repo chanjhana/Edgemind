@@ -21,26 +21,26 @@ function FloatingCard({ position, title, value, unit, warn, children, pumpColor,
         background: bg,
         backdropFilter: 'blur(8px)',
         border: `1px solid ${borderCol}`,
-        borderRadius: 6,
-        padding: '4px 8px',
+        borderRadius: 4,
+        padding: '2px 6px',
         color: 'var(--color-text-primary)',
         whiteSpace: 'nowrap',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 1,
+        gap: 0,
         pointerEvents: 'auto',
-        boxShadow: isDimmed ? 'none' : '0 4px 12px rgba(0,0,0,0.15)',
-        minWidth: 80,
+        boxShadow: isDimmed ? 'none' : '0 2px 6px rgba(0,0,0,0.1)',
+        minWidth: 60,
         opacity: isDimmed ? 0.25 : 1,
         transform: isDimmed ? 'scale(0.95)' : 'scale(1)',
         transition: 'opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease',
         cursor: 'default',
       }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+        <div style={{ fontSize: 8, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
           {title}
         </div>
-        <div style={{ fontSize: 12, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: warn ? 'var(--color-danger)' : 'var(--color-text-primary)' }}>
+        <div style={{ fontSize: 10, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: warn ? 'var(--color-danger)' : 'var(--color-text-primary)' }}>
           {value != null ? `${Number(value).toFixed(2)} ${unit}` : '—'}
         </div>
         {children}
@@ -222,12 +222,14 @@ export default function Pump3DScene({ readings, activeFault, pumpId }) {
         
         <OrbitControls makeDefault enablePan={false} minDistance={3} maxDistance={12} />
         
-        <IndustrialPump rpm={readings.rpm} pumpId={pumpId} />
+        <group scale={1.27}>
+          <IndustrialPump rpm={readings.rpm} pumpId={pumpId} />
+        </group>
 
         <group>
           {/* Motor Back - Vibration Axial (Shifted left) */}
           <FloatingCard 
-            position={[-2.0, 1.5, -2.5]} title="Vibration Axial" value={readings.vibration_axial} unit="mm/s"
+            position={[-2.8, 1.8, -3.0]} title="Vibration Axial" value={readings.vibration_axial} unit="mm/s"
             pumpColor={pColor} isDimmed={hoveredCard && hoveredCard !== 'Vibration Axial'} 
             onHover={() => setHoveredCard('Vibration Axial')} onLeave={() => setHoveredCard(null)}
           >
@@ -236,28 +238,28 @@ export default function Pump3DScene({ readings, activeFault, pumpId }) {
           
           {/* Motor Top - Vibration Radial (Shifted right) */}
           <FloatingCard 
-            position={[2.0, 1.5, -1.0]} title="Vibration Radial" value={readings.vibration_radial} unit="mm/s"
+            position={[2.8, 1.8, -1.5]} title="Vibration Radial" value={readings.vibration_radial} unit="mm/s"
             pumpColor={pColor} isDimmed={hoveredCard && hoveredCard !== 'Vibration Radial'} 
             onHover={() => setHoveredCard('Vibration Radial')} onLeave={() => setHoveredCard(null)}
           />
           
           {/* Volute Top - Vibration Tangential */}
           <FloatingCard 
-            position={[0, 3.2, 0.5]} title="Vibration Tang" value={readings.vibration_tangential} unit="mm/s"
+            position={[0, 4.0, 0.5]} title="Vibration Tang" value={readings.vibration_tangential} unit="mm/s"
             pumpColor={pColor} isDimmed={hoveredCard && hoveredCard !== 'Vibration Tang'} 
             onHover={() => setHoveredCard('Vibration Tang')} onLeave={() => setHoveredCard(null)}
           />
           
           {/* Volute Side/Bottom - Temperature */}
           <FloatingCard 
-            position={[1.8, -1.2, 0.5]} title="Temperature" value={readings.temperature} unit="°C" warn={readings.temperature > 80}
+            position={[2.5, -1.6, 0.5]} title="Temperature" value={readings.temperature} unit="°C" warn={readings.temperature > 80}
             pumpColor={pColor} isDimmed={hoveredCard && hoveredCard !== 'Temperature'} 
             onHover={() => setHoveredCard('Temperature')} onLeave={() => setHoveredCard(null)}
           />
           
           {/* Turbine Side - RPM */}
           <FloatingCard 
-            position={[1.5, 0.5, 2.0]} title="RPM" value={readings.rpm} unit="rpm"
+            position={[2.2, 0.6, 2.5]} title="RPM" value={readings.rpm} unit="rpm"
             pumpColor={pColor} isDimmed={hoveredCard && hoveredCard !== 'RPM'} 
             onHover={() => setHoveredCard('RPM')} onLeave={() => setHoveredCard(null)}
           />
