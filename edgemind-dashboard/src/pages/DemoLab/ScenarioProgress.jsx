@@ -1,22 +1,33 @@
 import { useAppState } from '../../core/store/AppContext.jsx'
 import { stepIsDone } from '../../core/selectors/scenarioMatch.js'
 
-function StepRow({ step, status }) {
-  const color =
-    status === 'done'   ? 'var(--color-success)' :
-    status === 'active' ? 'var(--color-warning)' :
-    'var(--color-text-tertiary)'
-  const icon =
-    status === 'done'   ? '✓' :
-    status === 'active' ? '⏳' :
-    '○'
+function StepRow({ step, status, isLast }) {
+  const isDone = status === 'done'
+  const isActive = status === 'active'
+  const color = isDone ? 'var(--color-success)' : isActive ? 'var(--color-warning)' : 'var(--color-border-primary)'
+  const textColor = isDone ? 'var(--color-text-primary)' : isActive ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)'
+  const fontWeight = isActive ? 700 : 500
 
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, padding: '3px 0' }}>
-      <span style={{ color, width: 14, flexShrink: 0 }}>{icon}</span>
-      <span style={{ color: status === 'pending' ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)' }}>
+    <div style={{ display: 'flex', gap: 14, position: 'relative', paddingBottom: isLast ? 0 : 20 }}>
+      {!isLast && (
+        <div style={{ 
+          position: 'absolute', left: 9, top: 24, bottom: 0, width: 2, 
+          background: isDone ? 'var(--color-success)' : 'var(--color-border-secondary)',
+          zIndex: 0
+        }} />
+      )}
+      <div style={{
+        width: 20, height: 20, borderRadius: '50%', background: isDone ? 'var(--color-success)' : isActive ? 'var(--color-bg-card)' : 'var(--color-bg-surface)',
+        border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1,
+        marginTop: 0, flexShrink: 0
+      }}>
+        {isDone && <span style={{ color: '#fff', fontSize: 10, fontWeight: 900 }}>✓</span>}
+        {isActive && <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-warning)' }} className="animate-pulse-dot" />}
+      </div>
+      <div style={{ color: textColor, fontSize: 13, fontWeight, paddingTop: 0, lineHeight: 1.4 }}>
         {step.label}
-      </span>
+      </div>
     </div>
   )
 }
@@ -37,10 +48,12 @@ export default function ScenarioProgress({ scenario, running, startedAt }) {
   const finalStatuses = stepStatuses.map((s, i) => (i === activeIdx ? 'active' : s))
 
   return (
-    <div>
-      {scenario.steps.map((step, i) => (
-        <StepRow key={step.id} step={step} status={finalStatuses[i]} />
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+        {scenario.steps.map((step, i) => (
+          <StepRow key={step.id} step={step} status={finalStatuses[i]} isLast={i === scenario.steps.length - 1} />
+        ))}
+      </div>
     </div>
   )
 }

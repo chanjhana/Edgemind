@@ -10,7 +10,7 @@ export default function SensorSimPanel({ podName }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Pump3DScene readings={readings} activeFault={activeFault} />
+      <Pump3DScene readings={readings} activeFault={activeFault} pumpId={pumpId} />
     </div>
   )
 }

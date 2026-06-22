@@ -35,60 +35,78 @@ export default function ScenarioCard({ scenario, running, completed, onLaunch, o
       className={running ? 'animate-running-glow' : ''}
       style={{
         background: 'var(--color-bg-card)', border: `1px solid ${borderColor}`,
-        borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 200,
+        borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 200,
+        height: '100%', boxShadow: '0 2px 8px var(--color-shadow)',
+        opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? 'none' : 'auto', filter: disabled ? 'grayscale(100%)' : 'none', transition: 'all 0.3s'
       }}
     >
-      <div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 3 }}>
-          {scenario.title}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 2 }}>
+            {scenario.title}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>
+            {scenario.description}
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{scenario.description}</div>
+        <div style={{ 
+          background: 'var(--color-bg-surface)', padding: '2px 6px', borderRadius: 12, 
+          fontSize: 9, fontWeight: 700, color: 'var(--color-text-tertiary)',
+          display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, border: '1px solid var(--color-border-card)'
+        }}>
+          ⏱ {scenario.expectedDuration}
+        </div>
       </div>
 
-      <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>
-        Expected: {scenario.expectedDuration}
-      </div>
-
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em' }}>AGENTS:</span>
         {(scenario.expectedAgents || []).map(agent => <AgentTag key={agent} agent={agent} />)}
       </div>
 
-      <ScenarioProgress scenario={scenario} running={running} startedAt={startedAt} />
+      <div style={{ 
+        flex: 1, background: 'var(--color-bg-surface)', borderRadius: 4, padding: '6px 10px', 
+        border: '1px solid var(--color-border-card)', overflowY: 'auto'
+      }}>
+        <ScenarioProgress scenario={scenario} running={running} startedAt={startedAt} />
+      </div>
 
       {running && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-warning)' }}>
-            <span>Progress: {doneCount}/{totalCount} steps</span>
-            {elapsed != null && <span>{Math.floor(elapsed / 60)}m {elapsed % 60}s</span>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontWeight: 700, color: 'var(--color-warning)' }}>
+            <span>Progress: {doneCount} of {totalCount}</span>
+            {elapsed != null && <span>Elapsed: {Math.floor(elapsed / 60)}m {elapsed % 60}s</span>}
           </div>
           <MiniProgressBar value={progressPct} max={100} label="" />
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+      <div style={{ display: 'flex', gap: 6, marginTop: 'auto', paddingTop: 4 }}>
         {!running && !completed && (
           <button
             onClick={onLaunch}
             disabled={disabled}
             style={{
-              flex: 1, padding: '5px 0', borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer',
+              flex: 1, padding: '6px 0', borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer',
               background: disabled ? 'var(--color-border-primary)' : 'var(--color-info)',
-              color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, opacity: disabled ? 0.5 : 1,
+              color: '#fff', border: 'none', fontSize: 11, fontWeight: 700, opacity: disabled ? 0.5 : 1,
+              transition: 'background 0.2s', boxShadow: '0 1px 3px var(--color-shadow)'
             }}
           >
-            Launch
+            Launch Scenario
           </button>
         )}
         {(running || completed) && (
           <button
             onClick={onClear}
             style={{
-              flex: 1, padding: '5px 0', borderRadius: 4, cursor: 'pointer',
-              background: 'transparent', color: 'var(--color-text-secondary)',
-              border: '1px solid var(--color-border-primary)', fontSize: 12,
+              flex: 1, padding: '6px 0', borderRadius: 4, cursor: 'pointer',
+              background: completed ? 'var(--color-bg-surface)' : 'var(--color-danger-tint)',
+              color: completed ? 'var(--color-text-primary)' : 'var(--color-danger)',
+              border: `1px solid ${completed ? 'var(--color-border-primary)' : 'var(--color-danger-border)'}`,
+              fontSize: 11, fontWeight: 700, transition: 'all 0.2s'
             }}
           >
-            {completed ? 'Reset' : '⏹ Stop & Clear'}
+            {completed ? 'Reset Scenario' : '⏹ Stop'}
           </button>
         )}
       </div>

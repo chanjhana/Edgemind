@@ -6,6 +6,7 @@ export default function GraphControls({
   showMonitoring, setShowMonitoring,
   onlyAnomalous, setOnlyAnomalous,
   scale, onScaleChange,
+  onFit,
 }) {
   const { graph, findings } = useAppState()
   const dispatch = useDispatch()
@@ -67,7 +68,7 @@ export default function GraphControls({
           style={zoomBtn}>+</button>
         <button onClick={() => onScaleChange(s => Math.max(0.4, parseFloat((s - 0.15).toFixed(2))))}
           style={zoomBtn}>−</button>
-        <button onClick={() => onScaleChange(1.0)}
+        <button onClick={onFit}
           style={{ ...zoomBtn, padding: '0 8px', fontSize: 10, width: 'auto', fontWeight: 700 }}>FIT</button>
         <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-tertiary)', minWidth: 32, textAlign: 'center', marginLeft: 4 }}>
           {Math.round(scale * 100)}%

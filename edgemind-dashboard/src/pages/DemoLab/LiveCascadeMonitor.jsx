@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react'
+import { useMemo } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import PanelHeader from '../../components/ui/PanelHeader.jsx'
 import { SCENARIOS } from '../../core/constants/faultModes.js'
@@ -34,16 +34,13 @@ function SensorTrendBar({ param, value }) {
   const pct = Math.min(100, (value / param.max) * 100)
   const color = paramColor(param, value)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, marginBottom: 5 }}>
-      <div style={{ width: 82, color: 'var(--color-text-secondary)', flexShrink: 0 }}>{param.label}</div>
-      <div style={{ flex: 1, height: 8, background: 'var(--color-border-secondary)', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.4s' }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, marginBottom: 8 }}>
+      <div style={{ width: 80, color: 'var(--color-text-secondary)', fontWeight: 600, flexShrink: 0 }}>{param.label}</div>
+      <div style={{ flex: 1, height: 6, background: 'var(--color-bg-surface)', borderRadius: 3, overflow: 'hidden', border: '1px solid var(--color-border-card)' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.4s cubic-bezier(0.25, 1, 0.5, 1)' }} />
       </div>
-      <div style={{ width: 78, color, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
-        {Number(value).toFixed(1)} {param.unit}
-      </div>
-      <div style={{ width: 72, color: 'var(--color-text-tertiary)', fontSize: 10, textAlign: 'right' }}>
-        base {param.baseline}
+      <div style={{ width: 60, color, fontVariantNumeric: 'tabular-nums', textAlign: 'right', fontWeight: 800 }}>
+        {Number(value).toFixed(1)} <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>{param.unit}</span>
       </div>
     </div>
   )
@@ -64,20 +61,21 @@ function PodStatusBox({ podName, findings }) {
     .replace('feature-extractor', 'fe')
     .replace('health-scorer', 'hs')
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 64 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 64 }}>
       <div style={{
-        width: 48, height: 48, borderRadius: 6,
+        width: 52, height: 52, borderRadius: 8,
         background: 'var(--color-bg-surface)',
         border: `2px solid ${dotColor}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 10, color: dotColor, fontWeight: 700, textAlign: 'center',
-        padding: 2, lineHeight: 1.2,
-        boxShadow: health !== 'healthy' ? `0 0 6px ${dotColor}44` : 'none',
+        fontSize: 12, color: dotColor, fontWeight: 800, textAlign: 'center',
+        padding: 4, lineHeight: 1.2,
+        boxShadow: health !== 'healthy' ? `0 0 12px ${dotColor}44` : '0 2px 4px var(--color-shadow)',
+        transition: 'all 0.3s'
       }}>
         {short}
       </div>
       {worst && (
-        <div style={{ fontSize: 9, color: dotColor, textAlign: 'center', maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 9, color: dotColor, fontWeight: 700, textAlign: 'center', maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {worst.anomaly_type}
         </div>
       )}
@@ -87,17 +85,18 @@ function PodStatusBox({ podName, findings }) {
 
 function CheckRow({ label, checked }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, padding: '3px 0' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, padding: '4px 0' }}>
       <span style={{
-        width: 16, height: 16, borderRadius: 3, flexShrink: 0,
+        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
         background: checked ? 'var(--color-success)' : 'var(--color-bg-surface)',
         border: `1px solid ${checked ? 'var(--color-success)' : 'var(--color-border-primary)'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 10, color: '#fff', fontWeight: 900,
+        boxShadow: checked ? '0 1px 3px var(--color-success-tint)' : 'none'
       }}>
         {checked ? '✓' : ''}
       </span>
-      <span style={{ color: checked ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)' }}>
+      <span style={{ color: checked ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)', fontWeight: checked ? 600 : 400 }}>
         {label}
       </span>
     </div>
@@ -114,6 +113,24 @@ function fmtAgo(ts) {
   if (!ts) return ''
   const s = Math.max(0, Math.floor((Date.now() - new Date(ts).getTime()) / 1000))
   return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ${s % 60}s ago`
+}
+
+function DashboardCard({ title, children, accentColor }) {
+  return (
+    <div style={{
+      background: 'var(--color-bg-card)', borderRadius: 8, padding: 16,
+      border: `1px solid ${accentColor ? accentColor : 'var(--color-border-card)'}`, 
+      boxShadow: accentColor ? `0 4px 12px ${accentColor}22` : '0 2px 8px var(--color-shadow)',
+      display: 'flex', flexDirection: 'column', gap: 12, height: '100%'
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        {title}
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {children}
+      </div>
+    </div>
+  )
 }
 
 export default function LiveCascadeMonitor() {
@@ -193,10 +210,10 @@ export default function LiveCascadeMonitor() {
   // ── Idle state ────────────────────────────────────────────────────────
   if (!activeScenario && !anyActiveFault) {
     return (
-      <div style={{ background: 'var(--color-bg-card)', borderRadius: 8, padding: 24, textAlign: 'center', border: '1px solid var(--color-border-card)' }}>
-        <div style={{ fontSize: 28, marginBottom: 8, color: 'var(--color-success)' }}>✓</div>
-        <div style={{ fontWeight: 700, color: 'var(--color-success)', fontSize: 14, marginBottom: 6 }}>System Nominal</div>
-        <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+      <div style={{ background: 'var(--color-bg-card)', borderRadius: 8, padding: 32, textAlign: 'center', border: '1px solid var(--color-border-card)', boxShadow: '0 2px 8px var(--color-shadow)' }}>
+        <div style={{ fontSize: 32, marginBottom: 8, color: 'var(--color-success)' }}>✓</div>
+        <div style={{ fontWeight: 800, color: 'var(--color-success)', fontSize: 16, marginBottom: 6 }}>System Nominal</div>
+        <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>
           All pumps operating at baseline. Select a scenario above to begin demo.
         </div>
       </div>
@@ -204,170 +221,170 @@ export default function LiveCascadeMonitor() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
           <span style={{ display: 'inline-block', width: 3, height: 14, borderRadius: 2, background: 'var(--color-danger)', flexShrink: 0 }} />
-          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--color-text-primary)', textTransform: 'uppercase' }}>Live Cascade Effect</span>
+          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--color-text-primary)', textTransform: 'uppercase' }}>Live Cascade Effect</span>
         </span>
         {elapsed && (
-          <div style={{ fontSize: 11, color: 'var(--color-warning)', fontVariantNumeric: 'tabular-nums' }}>
-            Elapsed: {elapsed}
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-warning)', fontVariantNumeric: 'tabular-nums', background: 'var(--color-warning-tint)', padding: '4px 10px', borderRadius: 12, border: '1px solid var(--color-warning)' }}>
+            ⏱ Elapsed: {elapsed}
           </div>
         )}
       </div>
 
-      {/* ── Pipeline node row ─────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* Pipeline node row */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center', flexWrap: 'wrap', background: 'var(--color-bg-card)', padding: '16px 20px', borderRadius: 8, border: '1px solid var(--color-border-card)', boxShadow: '0 2px 8px var(--color-shadow)' }}>
         {watchPods.map((pod, i) => (
-          <div key={pod} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div key={pod} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <PodStatusBox podName={pod} findings={recentFindings} />
             {i < watchPods.length - 1 && (
-              <span style={{ fontSize: 14, color: 'var(--color-text-tertiary)' }}>→</span>
+              <span style={{ fontSize: 16, color: 'var(--color-border-primary)', fontWeight: 300 }}>→</span>
             )}
           </div>
         ))}
       </div>
 
-      {/* ── Parameter Trends ──────────────────────────────────────────── */}
-      {activePump && (
-        <div style={{ background: 'var(--color-bg-surface)', borderRadius: 6, padding: 12 }}>
-          <PanelHeader title={`Parameter Trends — ${activeSensor || activePump}`} style={{ marginBottom: 10 }} />
-          {SENSOR_PARAMS.map(p => (
-            <SensorTrendBar key={p.key} param={p} value={sensorData[p.key]} />
-          ))}
-          <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: 'var(--color-text-tertiary)' }}>
-            {sensorData.emission_hz != null && (
-              <span style={{ color: sensorData.emission_hz > 2 ? 'var(--color-danger)' : 'var(--color-text-tertiary)' }}>
-                Emission: {sensorData.emission_hz} Hz
-                {sensorData.emission_hz > 2 ? ' ⚡ FLOOD' : ' ● normal'}
-              </span>
-            )}
-            {sensorData.active_fault && (
-              <span style={{ color: 'var(--color-warning)' }}>
-                Fault: {sensorData.active_fault}
-                {sensorData.elapsed_s != null && ` · ${Math.floor(sensorData.elapsed_s / 60)}m ${Math.round(sensorData.elapsed_s % 60)}s`}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Health Scorer Output ──────────────────────────────────────── */}
-      {Object.keys(pumpHealthMap).length > 0 && (
-        <div style={{ background: 'var(--color-bg-surface)', borderRadius: 6, padding: 12 }}>
-          <PanelHeader title="Health Scorer Output" style={{ marginBottom: 8 }} />
-          {Object.entries(pumpHealthMap).map(([pid, a]) => {
-            const sev = a.severity || (
-              (a.overall_health ?? 100) < 50 ? 'critical' :
-              (a.overall_health ?? 100) < 75 ? 'warning' : 'healthy'
-            )
-            return (
-              <div key={pid} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, marginBottom: 5, flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--color-text-secondary)', minWidth: 52 }}>{pid}</span>
-                <SeverityBadge severity={sev} />
-                {a.overall_health  != null && <span style={{ color: 'var(--color-text-tertiary)' }}>overall: <strong style={{ color: 'var(--color-text-primary)' }}>{Number(a.overall_health).toFixed(1)}</strong></span>}
-                {a.bearing_health  != null && <span style={{ color: 'var(--color-text-tertiary)' }}>bearing: <strong style={{ color: 'var(--color-text-primary)' }}>{Number(a.bearing_health).toFixed(1)}</strong></span>}
-                {(a.vibration_score ?? a.vib_score) != null && <span style={{ color: 'var(--color-text-tertiary)' }}>vib: <strong style={{ color: 'var(--color-text-primary)' }}>{Number(a.vibration_score ?? a.vib_score).toFixed(1)}</strong></span>}
-                {(a.trigger || a.trigger_type)     && <span style={{ color: 'var(--color-warning)' }}>{a.trigger || a.trigger_type}</span>}
+      {/* 2-Column Grid for Panels */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        
+        {/* LEFT COLUMN */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {activePump && (
+            <DashboardCard title={`Parameter Trends — ${activeSensor || activePump}`}>
+              {SENSOR_PARAMS.map(p => (
+                <SensorTrendBar key={p.key} param={p} value={sensorData[p.key]} />
+              ))}
+              <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: 'var(--color-text-tertiary)' }}>
+                {sensorData.emission_hz != null && (
+                  <span style={{ color: sensorData.emission_hz > 2 ? 'var(--color-danger)' : 'var(--color-text-tertiary)' }}>
+                    Emission: {sensorData.emission_hz} Hz
+                    {sensorData.emission_hz > 2 ? ' ⚡ FLOOD' : ' ● normal'}
+                  </span>
+                )}
+                {sensorData.active_fault && (
+                  <span style={{ color: 'var(--color-warning)' }}>
+                    Fault: {sensorData.active_fault}
+                    {sensorData.elapsed_s != null && ` · ${Math.floor(sensorData.elapsed_s / 60)}m ${Math.round(sensorData.elapsed_s % 60)}s`}
+                  </span>
+                )}
               </div>
-            )
-          })}
-        </div>
-      )}
+            </DashboardCard>
+          )}
 
-      {/* ── EdgeMind Findings since injection ────────────────────────── */}
-      {recentFindings.length > 0 && (
-        <div style={{ background: 'var(--color-bg-surface)', borderRadius: 6, padding: 12 }}>
-          <PanelHeader title={`EdgeMind Findings ${startedAt ? 'Since Injection' : '(Last 20)'}`} style={{ marginBottom: 8 }} />
-          {recentFindings.slice(0, 10).map((f, i) => {
-            const color =
-              f.severity === 'critical' ? 'var(--color-danger)' :
-              f.severity === 'warning'  ? 'var(--color-warning)' :
-              'var(--color-success)'
-            return (
-              <div key={i} style={{
-                display: 'flex', gap: 8, alignItems: 'center', fontSize: 11,
-                padding: '4px 0', borderBottom: '1px solid var(--color-border-card)',
-              }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                <span style={{ flex: 1, color: 'var(--color-text-secondary)' }}>{f.anomaly_type}</span>
-                <span style={{ color: 'var(--color-text-tertiary)' }}>{f.pod}</span>
-                <span style={{ color: 'var(--color-text-tertiary)', fontSize: 10, flexShrink: 0 }}>{fmtAgo(f.timestamp)}</span>
+          {recentFindings.length > 0 && (
+            <DashboardCard title={`EdgeMind Findings ${startedAt ? 'Since Injection' : '(Last 20)'}`}>
+              {recentFindings.slice(0, 10).map((f, i) => {
+                const color =
+                  f.severity === 'critical' ? 'var(--color-danger)' :
+                  f.severity === 'warning'  ? 'var(--color-warning)' :
+                  'var(--color-success)'
+                return (
+                  <div key={i} style={{
+                    display: 'flex', gap: 8, alignItems: 'center', fontSize: 11,
+                    padding: '6px 0', borderBottom: '1px solid var(--color-border-card)',
+                  }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                    <span style={{ flex: 1, color: 'var(--color-text-secondary)', fontWeight: 600 }}>{f.anomaly_type}</span>
+                    <span style={{ color: 'var(--color-text-tertiary)' }}>{f.pod}</span>
+                    <span style={{ color: 'var(--color-text-tertiary)', fontSize: 10, flexShrink: 0 }}>{fmtAgo(f.timestamp)}</span>
+                  </div>
+                )
+              })}
+            </DashboardCard>
+          )}
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <DashboardCard title="Correlated Alert" accentColor={scenarioAlert ? 'var(--color-warning)' : null}>
+            {!scenarioAlert ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-tertiary)', fontSize: 12 }}>
+                <span style={{ fontSize: 16 }} className="animate-pulse-dot">⏳</span>
+                <span>Waiting for orchestrator analysis…</span>
               </div>
-            )
-          })}
-        </div>
-      )}
+            ) : (
+              <div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                  <SeverityBadge severity={scenarioAlert.severity || 'warning'} />
+                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text-primary)' }}>
+                    {scenarioAlert.alert_type}
+                  </span>
+                  {scenarioAlert.confidence != null && (
+                    <span style={{ fontSize: 11, color: 'var(--color-info)', fontWeight: 700, padding: '2px 6px', background: 'var(--color-info-tint)', borderRadius: 12 }}>
+                      conf: {(scenarioAlert.confidence * 100).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+                {scenarioAlert.root_cause_pod && (
+                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                    Root cause: <strong style={{ color: 'var(--color-text-primary)' }}>{scenarioAlert.root_cause_pod}</strong>
+                    {scenarioAlert.root_cause_metric && ` · ${scenarioAlert.root_cause_metric}`}
+                  </div>
+                )}
+                {scenarioAlert.nlp_summary && (
+                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.5, marginBottom: 8, background: 'var(--color-bg-surface)', padding: 8, borderRadius: 6 }}>
+                    {scenarioAlert.nlp_summary}
+                  </div>
+                )}
+                {scenarioAlert.recommendation && (
+                  <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontStyle: 'italic', borderLeft: '2px solid var(--color-info)', paddingLeft: 10, marginTop: 4 }}>
+                    → {scenarioAlert.recommendation}
+                  </div>
+                )}
+              </div>
+            )}
+          </DashboardCard>
 
-      {/* ── Correlated Alert ─────────────────────────────────────────── */}
-      <div style={{ background: 'var(--color-bg-surface)', borderRadius: 6, padding: 12 }}>
-        <PanelHeader title="Correlated Alert" style={{ marginBottom: 8 }} />
-        {!scenarioAlert ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-tertiary)', fontSize: 12 }}>
-            <span style={{ fontSize: 16 }}>⏳</span>
-            <span>Waiting for orchestrator analysis…</span>
-          </div>
-        ) : (
-          <div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-              <SeverityBadge severity={scenarioAlert.severity || 'warning'} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                {scenarioAlert.alert_type}
-              </span>
-              {scenarioAlert.confidence != null && (
-                <span style={{ fontSize: 11, color: 'var(--color-info)' }}>
-                  conf: {(scenarioAlert.confidence * 100).toFixed(0)}%
-                </span>
-              )}
+          <DashboardCard title="Detection Scoreboard">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 20px', marginBottom: 12 }}>
+              <CheckRow label="Root cause found?"         checked={scoreboard.rootCauseFound} />
+              <CheckRow label="Correct root cause pod?"   checked={scoreboard.correctRootCausePod} />
+              <CheckRow label="Multi-agent correlation?"  checked={scoreboard.multiAgentCorr} />
+              <CheckRow label="Indirect dependency?"      checked={scoreboard.indirectDependency} />
+              <CheckRow label="Causal chain complete?"    checked={scoreboard.causalChainComplete} />
+              <CheckRow label="Confidence tier ≥ 0.7?"    checked={scoreboard.confidenceHigh} />
             </div>
-            {scenarioAlert.root_cause_pod && (
-              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
-                Root cause: <strong style={{ color: 'var(--color-text-primary)' }}>{scenarioAlert.root_cause_pod}</strong>
-                {scenarioAlert.root_cause_metric && ` · ${scenarioAlert.root_cause_metric}`}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em' }}>AGENTS FIRED:</span>
+              {scoreboard.agentsFired.length > 0
+                ? scoreboard.agentsFired.map(a => <AgentTag key={a} agent={a} />)
+                : <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>None</span>
+              }
+            </div>
+            {scoreboard.logBridgeOnly && (
+              <div style={{
+                marginTop: 10, fontSize: 11, color: 'var(--color-warning)', fontStyle: 'italic',
+                padding: '6px 10px', background: 'var(--color-warning-tint)', borderRadius: 4,
+              }}>
+                Detected via pump health log, not infra-level multi-agent correlation
               </div>
             )}
-            {scenarioAlert.nlp_summary && (
-              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.5, marginBottom: 6 }}>
-                {scenarioAlert.nlp_summary}
-              </div>
-            )}
-            {scenarioAlert.recommendation && (
-              <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontStyle: 'italic', borderLeft: '2px solid var(--color-info)', paddingLeft: 8 }}>
-                → {scenarioAlert.recommendation}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          </DashboardCard>
 
-      {/* ── Detection Scoreboard ─────────────────────────────────────── */}
-      <div style={{ background: 'var(--color-bg-surface)', borderRadius: 6, padding: 12 }}>
-        <PanelHeader title="Detection Scoreboard" style={{ marginBottom: 10 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 20px', marginBottom: 10 }}>
-          <CheckRow label="Root cause found?"         checked={scoreboard.rootCauseFound} />
-          <CheckRow label="Correct root cause pod?"   checked={scoreboard.correctRootCausePod} />
-          <CheckRow label="Multi-agent correlation?"  checked={scoreboard.multiAgentCorr} />
-          <CheckRow label="Indirect dependency shown?" checked={scoreboard.indirectDependency} />
-          <CheckRow label="Causal chain complete?"    checked={scoreboard.causalChainComplete} />
-          <CheckRow label="Confidence tier ≥ 0.7?"   checked={scoreboard.confidenceHigh} />
+          {Object.keys(pumpHealthMap).length > 0 && (
+            <DashboardCard title="Health Scorer Output">
+              {Object.entries(pumpHealthMap).map(([pid, a]) => {
+                const sev = a.severity || (
+                  (a.overall_health ?? 100) < 50 ? 'critical' :
+                  (a.overall_health ?? 100) < 75 ? 'warning' : 'healthy'
+                )
+                return (
+                  <div key={pid} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, padding: '6px 0', borderBottom: '1px solid var(--color-border-card)', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--color-text-secondary)', minWidth: 52, fontWeight: 700 }}>{pid}</span>
+                    <SeverityBadge severity={sev} />
+                    {a.overall_health  != null && <span style={{ color: 'var(--color-text-tertiary)' }}>overall: <strong style={{ color: 'var(--color-text-primary)' }}>{Number(a.overall_health).toFixed(1)}</strong></span>}
+                    {a.bearing_health  != null && <span style={{ color: 'var(--color-text-tertiary)' }}>bearing: <strong style={{ color: 'var(--color-text-primary)' }}>{Number(a.bearing_health).toFixed(1)}</strong></span>}
+                    {(a.vibration_score ?? a.vib_score) != null && <span style={{ color: 'var(--color-text-tertiary)' }}>vib: <strong style={{ color: 'var(--color-text-primary)' }}>{Number(a.vibration_score ?? a.vib_score).toFixed(1)}</strong></span>}
+                    {(a.trigger || a.trigger_type)     && <span style={{ color: 'var(--color-warning)' }}>{a.trigger || a.trigger_type}</span>}
+                  </div>
+                )
+              })}
+            </DashboardCard>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {scoreboard.agentsFired.length > 0
-            ? scoreboard.agentsFired.map(a => <AgentTag key={a} agent={a} />)
-            : <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>No agents fired yet</span>
-          }
-        </div>
-        {scoreboard.logBridgeOnly && (
-          <div style={{
-            marginTop: 8, fontSize: 11, color: 'var(--color-text-tertiary)', fontStyle: 'italic',
-            padding: '6px 8px', background: 'var(--color-bg-card)', borderRadius: 4,
-            borderLeft: '2px solid var(--color-warning)',
-          }}>
-            Detected via pump health log, not infra-level multi-agent correlation
-          </div>
-        )}
       </div>
     </div>
   )

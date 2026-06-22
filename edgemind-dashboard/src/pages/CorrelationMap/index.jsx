@@ -14,6 +14,7 @@ export default function DependencyGraph() {
   const [onlyAnomalous, setOnlyAnomalous] = useState(false)
   const [selectedNode,  setSelectedNode]  = useState(searchParams.get('node'))
   const [scale, setScale] = useState(1.0)
+  const [fitTrigger, setFitTrigger] = useState(0)
 
   useEffect(() => {
     const node = searchParams.get('node')
@@ -30,6 +31,7 @@ export default function DependencyGraph() {
         showMonitoring={showMonitoring} setShowMonitoring={setShowMonitoring}
         onlyAnomalous={onlyAnomalous} setOnlyAnomalous={setOnlyAnomalous}
         scale={scale} onScaleChange={setScale}
+        onFit={() => { setScale(1.0); setFitTrigger(f => f + 1) }}
       />
 
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'row', padding: 16 }}>
@@ -47,6 +49,7 @@ export default function DependencyGraph() {
               showMonitoring={showMonitoring}
               onlyAnomalous={onlyAnomalous}
               scale={scale}
+              fitTrigger={fitTrigger}
               onNodeClick={pod => setSelectedNode(pod)}
             />
           </div>

@@ -143,3 +143,13 @@ body,
 .nav-link-hover:hover::after {
   background-color: var(--color-danger);
 }
+
+/* Carousel sliding animations */
+@keyframes slideInRight {
+  from { transform: translateX(30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}

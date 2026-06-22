@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { useAppState } from '../../core/store/AppContext.jsx'
 import { findMetrics } from '../../core/selectors/podHealth.js'
 import { latestActiveCorrelation } from '../../core/selectors/correlations.js'
@@ -26,6 +26,7 @@ export default function PipelineGraph({
   showMonitoring = true,
   onlyAnomalous = false,
   scale = 1,
+  fitTrigger = 0,
   width,
   height,
 }) {
@@ -40,6 +41,10 @@ export default function PipelineGraph({
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const isDragging = useRef(false)
   const lastMouse = useRef({ x: 0, y: 0 })
+
+  useEffect(() => {
+    if (fitTrigger > 0) setPan({ x: 0, y: 0 })
+  }, [fitTrigger])
 
   const handleMouseDown = (e) => {
     isDragging.current = true
