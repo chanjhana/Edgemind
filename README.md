@@ -495,7 +495,7 @@ pytest batch_sync/tests/ -v             # export state, parquet round-trip
 
 ---
 
-## 🗺 Roadmap
+## Roadmap
 
 | Status | Item |
 |---|---|
@@ -512,7 +512,7 @@ pytest batch_sync/tests/ -v             # export state, parquet round-trip
 
 <div align="center">
 
-### 📸 Screenshots referenced above
+### Screenshots referenced above
 Capture these and drop them in `docs/screenshots/` to complete the README:
 `command-center.png` · `correlation-map.png` · `ai-investigation.png` · `anomaly-timeline.png` · `demo-lab.png` · `dmd-forecast.png`
 
