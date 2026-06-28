@@ -205,33 +205,70 @@ async def _broadcast_to_ws(message: Dict[str, Any]) -> None:
         except Exception:
             dead.add(ws)
     _ws_clients.difference_update(dead)
+
+# SMS Cooldown state (suppress duplicate notifications within a 2-minute window)
+_last_dmd_sms_time = 0.0
+_last_correlated_sms_time = 0.0
+SMS_COOLDOWN_S = 120.0
+
 def _send_sms_if_configured(alert_data: Dict[str, Any]) -> None:
     # Temporarily disabled to prevent draining free Twilio credits
     log.info("Twilio SMS is temporarily disabled. Skipping SMS alert.")
     return
+    global _last_dmd_sms_time, _last_correlated_sms_time
     try:
         is_dmd = alert_data.get("is_dmd") is True
         
+        # Check credentials first before checking/updating cooldown
         account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
         auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
         from_num = os.environ.get("TWILIO_FROM_NUMBER")
         to_num = os.environ.get("TWILIO_TO_NUMBER")
         
-        log.info("Twilio SMS check: starting. SID=%s, From=%s, To=%s", 
-                 account_sid[:8] + "..." if account_sid else "None", 
-                 from_num, to_num)
-                 
         if not (account_sid and auth_token and from_num and to_num):
             log.info("Twilio SMS credentials not set or incomplete. Skipping SMS alert.")
             return
+
+        import time
+        now = time.time()
+        if is_dmd:
+            if now - _last_dmd_sms_time < SMS_COOLDOWN_S:
+                log.info("Twilio DMD SMS suppressed (cooldown).")
+                return
+            _last_dmd_sms_time = now
+        else:
+            if now - _last_correlated_sms_time < SMS_COOLDOWN_S:
+                log.info("Twilio Correlated SMS suppressed (cooldown).")
+                return
+            _last_correlated_sms_time = now
+        
+        log.info("Twilio SMS check: starting. SID=%s, From=%s, To=%s", 
+                 account_sid[:8] + "..." if account_sid else "None", 
+                 from_num, to_num)
+
+        def fmt_seconds(s):
+            if s is None:
+                return "N/A"
+            if s <= 0:
+                return "now"
+            if s < 60:
+                return f"{s}s"
+            m = s // 60
+            rem = s % 60
+            return f"{m}m {rem}s" if rem > 0 else f"{m}m"
 
         if is_dmd:
             anomaly_type = (alert_data.get("anomaly_type") or "dmd_warning").upper()
             pod = alert_data.get("pod") or alert_data.get("container") or "unknown"
             deviation = alert_data.get("deviation") or "Threshold breach predicted."
             growth_rate = alert_data.get("dominant_growth_rate_per_sec", 0.0)
+            breach_seconds = alert_data.get("predicted_breach_seconds")
             
-            body = f"EdgeMind [DMD EARLY WARNING]\nType: {anomaly_type}\nPod: {pod}\nWarning: {deviation}\nGrowth: {growth_rate:.4f}/s"
+            body = f"EdgeMind [DMD EARLY WARNING]\nType: {anomaly_type}\nPod: {pod}\nWarning: {deviation}"
+            if breach_seconds is not None:
+                time_to_breach = fmt_seconds(breach_seconds)
+                body += f"\nTime to Breach: {time_to_breach}"
+            body += f"\nGrowth: {growth_rate:.4f}/s"
         else:
             alert_type = (alert_data.get("alert_type") or "alert").upper()
             confidence = alert_data.get("confidence", 0.0)
@@ -240,7 +277,26 @@ def _send_sms_if_configured(alert_data: Dict[str, Any]) -> None:
             recommendation = alert_data.get("recommendation") or "No recommendation."
             root_cause = alert_data.get("root_cause_pod") or "unknown"
             
-            body = f"EdgeMind [{alert_type}] {conf_pct}% Conf\nInsight: {insight}\nRoot Cause: {root_cause}\nRec: {recommendation}"
+            body = f"EdgeMind [{alert_type}] {conf_pct}% Conf\nInsight: {insight}\nRoot Cause: {root_cause}"
+            
+            # Extract any breach time/ETA from the findings in the correlated bundle
+            findings = alert_data.get("bundle", {}).get("findings", [])
+            min_breach_seconds = None
+            for f in findings:
+                sec = f.get("predicted_breach_seconds")
+                if sec is not None:
+                    if min_breach_seconds is None or sec < min_breach_seconds:
+                        min_breach_seconds = sec
+                eta_min = f.get("eta_minutes")
+                if eta_min is not None:
+                    sec_from_eta = int(eta_min * 60)
+                    if min_breach_seconds is None or sec_from_eta < min_breach_seconds:
+                        min_breach_seconds = sec_from_eta
+            
+            if min_breach_seconds is not None:
+                body += f"\nTime to Breach: {fmt_seconds(min_breach_seconds)}"
+                
+            body += f"\nRec: {recommendation}"
         
         import base64
         import urllib.request

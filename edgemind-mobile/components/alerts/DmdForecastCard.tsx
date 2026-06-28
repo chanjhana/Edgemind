@@ -62,7 +62,7 @@ export default function DmdForecastCard({ forecast }: DmdForecastCardProps) {
           <View style={styles.metricBlock}>
             <Text style={styles.metricLabel}>BREACH IN</Text>
             <Text style={[styles.metricValue, { color: Colors.danger }]}>
-              {forecast.predicted_breach_seconds}s
+              {formatSeconds(forecast.predicted_breach_seconds)}
             </Text>
           </View>
         )}
@@ -88,6 +88,15 @@ export default function DmdForecastCard({ forecast }: DmdForecastCardProps) {
       </Text>
     </Pressable>
   );
+}
+
+function formatSeconds(s: number | undefined): string {
+  if (s === undefined) return '—';
+  if (s <= 0)   return 'now';
+  if (s < 60)   return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
 }
 
 function formatTimeAgo(iso: string): string {

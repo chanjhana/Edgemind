@@ -186,6 +186,7 @@ class DMDAgent(BaseAgent):
 
         # ── 1. Instability finding (growing eigenmode) ─────────────────
         if growth_rate > DMD_GROWTH_RATE_THRESH:
+            doubling_time = int(0.693 / growth_rate) if growth_rate > 0 else 0
             await self._maybe_emit(
                 state=state,
                 cooldown_key=DMD_INSTABILITY,
@@ -201,11 +202,12 @@ class DMDAgent(BaseAgent):
                     "dmd_window_steps":   n,
                     "current_value":      round(growth_rate, 5),
                     "baseline_value":     DMD_GROWTH_RATE_THRESH,
+                    "predicted_breach_seconds": doubling_time,
                     "deviation":          f"max growth rate {growth_rate:.4f}/s (threshold {DMD_GROWTH_RATE_THRESH}/s)",
                     "evidence": [
                         f"{n_growing} growing DMD mode(s) detected across {n} snapshots",
                         f"Fastest growth rate: {growth_rate:.5f}/s "
-                        f"→ amplitude doubles every {(0.693 / growth_rate):.0f}s",
+                        f"→ amplitude doubles every {doubling_time}s",
                         "Multivariate instability — system is accelerating before any "
                         "single metric has crossed its threshold",
                     ],

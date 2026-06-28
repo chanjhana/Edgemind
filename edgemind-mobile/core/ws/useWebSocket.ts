@@ -15,10 +15,10 @@ const RECONNECT_DELAY_MS = [1000, 2000, 4000, 8000, 16000]; // exponential backo
 
 export function useWebSocket() {
   const { dispatch } = useApp();
-  const wsRef      = useRef<WebSocket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const retryCount = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mounted    = useRef(true);
+  const mounted = useRef(true);
 
   const connect = useCallback(() => {
     if (!mounted.current) return;
@@ -108,19 +108,25 @@ export function useWebSocket() {
         const finding = data.data || data.payload || data;
         if (finding && finding.is_dmd) {
           dispatch({ type: 'ADD_DMD_FORECAST', payload: finding });
-          
+
           if (finding.severity === 'CRITICAL' || finding.severity === 'WARNING') {
+            const breachTime = finding.predicted_breach_seconds !== undefined
+              ? formatSeconds(finding.predicted_breach_seconds)
+              : null;
+            const breachSuffix = breachTime ? ` Breach predicted in ${breachTime}.` : '';
+            const description = `${finding.deviation || 'A resource limit breach is predicted soon.'}${breachSuffix}`;
+
             scheduleAlertNotification({
               id: finding.finding_id || `dmd-${Date.now()}`,
               pod_id: finding.pod || finding.container,
               severity: finding.severity,
               title: `DMD Early Warning: ${finding.metric_label || 'Resource Breach'}`,
-              description: finding.deviation || 'A resource limit breach is predicted soon.',
+              description,
               timestamp: finding.timestamp || new Date().toISOString(),
             });
             dispatch({
               type: 'SET_TOAST',
-              payload: `DMD WARNING: ${finding.deviation}`,
+              payload: `DMD WARNING: ${finding.deviation || 'Resource breach predicted'}${breachTime ? ` (Breach in ${breachTime})` : ''}`,
             });
             setTimeout(() => dispatch({ type: 'SET_TOAST', payload: null }), 5000);
           }
@@ -148,4 +154,13 @@ export function useWebSocket() {
       wsRef.current?.close();
     };
   }, [connect]);
+}
+
+function formatSeconds(s: number | undefined): string {
+  if (s === undefined) return '';
+  if (s <= 0)   return 'now';
+  if (s < 60)   return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
 }

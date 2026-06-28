@@ -7,6 +7,8 @@ metadata:
     app: edgemind-server
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: edgemind-server
@@ -31,13 +33,6 @@ spec:
               value: "http://172.18.0.1:11434"
             - name: OLLAMA_MODEL
               value: "qwen3:8b"
-            - name: GROQ_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: groq-credentials
-                  key: api-key
-            - name: GROQ_MODEL
-              value: "llama-3.3-70b-versatile"
             - name: LLM_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -71,8 +66,8 @@ spec:
                   key: to-number
           resources:
             requests:
-              cpu: "200m"
-              memory: "256Mi"
+              cpu: "100m"
+              memory: "128Mi"
             limits:
               cpu: "500m"
               memory: "512Mi"
