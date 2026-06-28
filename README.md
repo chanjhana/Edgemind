@@ -16,7 +16,7 @@
 
 *Detect. Correlate. Explain. Forecast — before the failure reaches the field.*
 
-### 📊 [**View the Presentation →**](http://canva.link/edgemind)
+### 📊 [**View the Presentation →**](https://www.canva.com/design/DAHNIJvwedc/U-UbmYA7jvFjSX3YPObs1A/view?utm_content=DAHNIJvwedc&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hcd61cf1535)
 
 </div>
 
